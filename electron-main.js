@@ -95,7 +95,7 @@ function launchBackend() {
   const child = spawn(backendLaunch.command, backendLaunch.args, {
     cwd: app.isPackaged ? process.resourcesPath : __dirname,
     windowsHide: true,
-    env: { ...process.env, PATH: backendRuntimePath, PYTHONUTF8: '1', VIBEWING_DATA_DIR: backendDataDir, VIBEWING_PORT: String(backendPort), VIBEWING_ACCESS_TOKEN: accessToken },
+    env: { ...process.env, PATH: backendRuntimePath, PYTHONUTF8: '1', VIBEWING_VERSION: app.getVersion(), VIBEWING_DATA_DIR: backendDataDir, VIBEWING_PORT: String(backendPort), VIBEWING_ACCESS_TOKEN: accessToken },
   });
   backend = child;
   child.stdout?.on('data', data => appendBackendLog(`stdout: ${String(data).trimEnd()}`));

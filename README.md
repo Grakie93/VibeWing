@@ -115,6 +115,7 @@ Use the built-in light or dark theme, or customize the accent, background, and c
 - Attach project context or selected logs to AI Chat for first-pass diagnosis.
 - Connect NVIDIA NIM or another OpenAI-compatible Chat Completions API.
 - Keep multiple conversations, choose a default model, switch language, and customize themes.
+- Check GitHub Releases at most once per day and notify you when a newer stable version is available. This can be disabled in General Settings.
 - Run on macOS and Windows with an embedded VibeWing backend—users do not need Python to run VibeWing itself.
 
 ## First use
@@ -213,6 +214,8 @@ Application data is stored per user:
 - Windows: `%APPDATA%\VibeWing`
 
 Project configuration, settings, conversations, and logs remain local unless you explicitly send project context or logs to an AI provider. Those AI requests are sent directly to the provider URL you configured and are subject to that provider's privacy and retention terms.
+
+When automatic update checks are enabled, VibeWing accesses the public GitHub Releases API at most once per day only to retrieve the latest stable version and release notes. No project data is sent.
 
 On macOS, API keys are stored in Keychain. On Windows, they are encrypted with Windows Data Protection API (DPAPI) for the current Windows user and persist across VibeWing restarts. Configuration exports never include API keys.
 
@@ -414,6 +417,7 @@ https://github.com/Grakie93/VibeWing
 - 将项目上下文或选中的日志附加到 AI 对话，进行初步诊断。
 - 接入 NVIDIA NIM 或其他兼容 OpenAI Chat Completions 格式的 API。
 - 保存多个对话、选择默认模型、切换软件语言并自定义主题。
+- 每天最多访问一次 GitHub Releases 检查稳定版更新，并在发现新版本时提醒；可在常规设置中关闭。
 - 在 macOS 和 Windows 上运行内置 VibeWing 后端，用户无需为了运行 VibeWing 安装 Python。
 
 ## 首次使用
@@ -511,6 +515,8 @@ VibeWing 的本地后端只监听 `127.0.0.1`，并使用每次启动时随机�
 - Windows：`%APPDATA%\VibeWing`
 
 项目配置、设置、对话和日志默认保留在本机。只有当你明确把项目上下文或日志发送给 AI 平台时，相关内容才会发送到你配置的平台地址，并受该平台的隐私与数据保留条款约束。
+
+启用自动检查更新时，VibeWing 每天最多访问一次公开的 GitHub Releases API，仅用于获取最新稳定版本号和版本说明，不会发送项目数据。
 
 macOS 上的 API Key 保存在钥匙串中。Windows 上的 Key 使用 Windows 数据保护 API（DPAPI）为当前 Windows 用户加密，并会在 VibeWing 重启后继续保留。配置导出不会包含 API Key。
 

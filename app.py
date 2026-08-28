@@ -22,6 +22,9 @@ BUILD_TASKS = {}
 BUILD_TASKS_LOCK = threading.Lock()
 SERVICE_NAME = 'vibewing-nvidia-api-key'
 ACCESS_TOKEN = os.environ.get('VIBEWING_ACCESS_TOKEN','')
+APP_VERSION = os.environ.get('VIBEWING_VERSION','0.0.0')
+UPDATE_LOCK = threading.Lock()
+UPDATE_CACHE_SECONDS = 24 * 60 * 60
 
 def credential_account():
     return os.getenv('USER','vibewing')
@@ -121,7 +124,7 @@ def generate_commit_message(task_id, cwd):
         with AI_TASKS_LOCK: AI_TASKS[task_id]={'status':'error','error':str(e)}
 
 def load_settings():
-    defaults={'model':'','models':[],'providers':[],'theme':{'accent':'#20bdb7','bg':'#f2fbfb','card':'#ffffff','preset':'winglight'},'language':'zh-CN','default_chat_model':''}
+    defaults={'model':'','models':[],'providers':[],'theme':{'accent':'#20bdb7','bg':'#f2fbfb','card':'#ffffff','preset':'winglight'},'language':'zh-CN','default_chat_model':'','check_updates':True}
     try:
         saved=json.loads(SETTINGS.read_text()) if SETTINGS.exists() else {}
         defaults.update(saved)
@@ -136,6 +139,27 @@ def load_settings():
     return defaults
 
 def save_settings(data): SETTINGS.write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding='utf-8')
+
+def version_tuple(value):
+    match=re.match(r'^v?(\d+)\.(\d+)\.(\d+)',str(value or '').strip())
+    return tuple(map(int,match.groups())) if match else (0,0,0)
+
+def check_for_update(force=False):
+    with UPDATE_LOCK:
+        settings=load_settings()
+        if settings.get('check_updates') is False: return {'enabled':False,'current_version':APP_VERSION,'update_available':False}
+        cached=settings.get('_update_cache') if isinstance(settings.get('_update_cache'),dict) else {}
+        if not force and time.time()-float(cached.get('checked_at',0) or 0)<UPDATE_CACHE_SECONDS and cached.get('latest_version'):
+            latest=cached.get('latest_version','')
+            return {**cached,'enabled':True,'current_version':APP_VERSION,'update_available':version_tuple(latest)>version_tuple(APP_VERSION),'cached':True}
+        request=Request('https://api.github.com/repos/Grakie93/VibeWing/releases/latest',headers={'Accept':'application/vnd.github+json','User-Agent':f'VibeWing/{APP_VERSION}'})
+        try:
+            release=json.loads(urlopen(request,timeout=8).read())
+            cache={'checked_at':int(time.time()),'latest_version':str(release.get('tag_name','')).lstrip('v'),'release_url':str(release.get('html_url','')),'release_name':str(release.get('name') or release.get('tag_name') or ''),'release_notes':str(release.get('body') or '')[:12000]}
+            settings['_update_cache']=cache; save_settings(settings)
+            return {**cache,'enabled':True,'current_version':APP_VERSION,'update_available':version_tuple(cache['latest_version'])>version_tuple(APP_VERSION),'cached':False}
+        except Exception as error:
+            return {'enabled':True,'current_version':APP_VERSION,'update_available':False,'error':str(error),'cached':False}
 
 def load_chats():
     """Load saved VibeWing conversations."""
@@ -577,6 +601,9 @@ class Handler(BaseHTTPRequestHandler):
         if path.startswith('/api/') and self.reject_unauthorized(): return
         if path=='/api/projects':
             with LOCK: self.send_json([project_view(p) for p in load()])
+        elif path=='/api/update-check':
+            query=urlparse(self.path).query; import urllib.parse; params=urllib.parse.parse_qs(query)
+            self.send_json(check_for_update(params.get('force',['0'])[0]=='1'))
         elif path=='/api/git':
             q=urlparse(self.path).query; import urllib.parse; d=urllib.parse.parse_qs(q); p=next((x for x in load() if x['id']==d.get('id',[''])[0]),None)
             if not p: return self.send_json({'error':'项目不存在'},404)
@@ -746,6 +773,7 @@ class Handler(BaseHTTPRequestHandler):
                 if isinstance(models,list): s['models']=list(dict.fromkeys(str(x).strip() for x in models if str(x).strip()))
                 if d.get('model'): s['model']=d['model'].strip()
                 if d.get('language') in ('zh-CN','en'): s['language']=d['language']
+                if isinstance(d.get('check_updates'),bool): s['check_updates']=d['check_updates']
                 if isinstance(d.get('default_chat_model'),str): s['default_chat_model']=d['default_chat_model'].strip()
                 theme=d.get('theme')
                 if isinstance(theme,dict):
