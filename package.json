@@ -18,8 +18,8 @@
     "repair:electron": "electron_config_cache=./.electron-cache ELECTRON_CACHE=./.electron-cache ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ npm rebuild electron --foreground-scripts",
     "start": "electron .",
     "build:backend": "python3 scripts/build-backend.py",
-    "dist:mac": "npm run build:backend && electron-builder --mac",
-    "dist:win": "npm run build:backend && electron-builder --win",
+    "dist:mac": "npm run build:backend && electron-builder --mac --publish never",
+    "dist:win": "npm run build:backend && electron-builder --win --publish never",
     "dist:dir": "npm run build:backend && electron-builder --dir"
   },
   "devDependencies": {
