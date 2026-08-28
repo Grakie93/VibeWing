@@ -385,11 +385,30 @@ def port_open(port):
     finally: s.close()
 
 def pid_alive(pid):
+    if not pid: return False
+    if os.name=='nt':
+        # os.kill(pid, 0) is a harmless existence check on POSIX, but Python's
+        # Windows implementation delegates non-console signals to
+        # TerminateProcess. Using it here terminated services immediately after
+        # VibeWing started them. Query the process handle without signalling it.
+        try:
+            kernel32=ctypes.windll.kernel32
+            kernel32.OpenProcess.argtypes=[ctypes.c_ulong,ctypes.c_int,ctypes.c_ulong]
+            kernel32.OpenProcess.restype=ctypes.c_void_p
+            kernel32.GetExitCodeProcess.argtypes=[ctypes.c_void_p,ctypes.POINTER(ctypes.c_ulong)]
+            kernel32.GetExitCodeProcess.restype=ctypes.c_int
+            kernel32.CloseHandle.argtypes=[ctypes.c_void_p]; kernel32.CloseHandle.restype=ctypes.c_int
+            handle=kernel32.OpenProcess(0x1000,False,int(pid))
+            if not handle: return False
+            try:
+                code=ctypes.c_ulong()
+                return bool(kernel32.GetExitCodeProcess(handle,ctypes.byref(code))) and code.value==259
+            finally: kernel32.CloseHandle(handle)
+        except Exception: return False
     try:
         os.kill(int(pid), 0)
-        if os.name == 'posix':
-            r=subprocess.run(['ps','-o','stat=','-p',str(pid)],capture_output=True,text=True,timeout=2)
-            if not r.stdout.strip() or r.stdout.strip().startswith('Z'): return False
+        r=subprocess.run(['ps','-o','stat=','-p',str(pid)],capture_output=True,text=True,timeout=2)
+        if not r.stdout.strip() or r.stdout.strip().startswith('Z'): return False
         return True
     except Exception: return False
 
