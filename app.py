@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import json, os, signal, socket, subprocess, threading, time, shlex, re, sys
+import base64, ctypes, json, os, signal, socket, subprocess, threading, time, shlex, re, sys
 from pathlib import Path
 from urllib.parse import urlparse
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
@@ -13,6 +13,7 @@ DATA = DATA_ROOT / 'projects.json'
 SETTINGS = DATA_ROOT / 'settings.json'
 CHATS = DATA_ROOT / 'chats.json'
 LOGS = DATA_ROOT / 'logs'
+CREDENTIALS = DATA_ROOT / 'credentials.json'
 WEB = ROOT / 'index.html'
 LOCK = threading.Lock()
 AI_TASKS = {}
@@ -24,6 +25,63 @@ ACCESS_TOKEN = os.environ.get('VIBEWING_ACCESS_TOKEN','')
 
 def credential_account():
     return os.getenv('USER','vibewing')
+
+class DATA_BLOB(ctypes.Structure):
+    _fields_=[('cbData',ctypes.c_ulong),('pbData',ctypes.POINTER(ctypes.c_ubyte))]
+
+def windows_credential_store():
+    try:
+        data=json.loads(CREDENTIALS.read_text(encoding='utf-8')) if CREDENTIALS.exists() else {}
+        return data if isinstance(data,dict) else {}
+    except Exception:
+        return {}
+
+def save_windows_credential_store(data):
+    temporary=CREDENTIALS.with_suffix('.tmp')
+    temporary.write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding='utf-8')
+    temporary.replace(CREDENTIALS)
+
+def windows_crypto_api():
+    crypt32=ctypes.windll.crypt32; kernel32=ctypes.windll.kernel32
+    blob_pointer=ctypes.POINTER(DATA_BLOB)
+    crypt32.CryptProtectData.argtypes=[blob_pointer,ctypes.c_wchar_p,blob_pointer,ctypes.c_void_p,ctypes.c_void_p,ctypes.c_ulong,blob_pointer]
+    crypt32.CryptProtectData.restype=ctypes.c_int
+    crypt32.CryptUnprotectData.argtypes=[blob_pointer,ctypes.c_void_p,blob_pointer,ctypes.c_void_p,ctypes.c_void_p,ctypes.c_ulong,blob_pointer]
+    crypt32.CryptUnprotectData.restype=ctypes.c_int
+    kernel32.LocalFree.argtypes=[ctypes.c_void_p]; kernel32.LocalFree.restype=ctypes.c_void_p
+    return crypt32,kernel32
+
+def dpapi_encrypt(value):
+    raw=value.encode('utf-8'); source_buffer=ctypes.create_string_buffer(raw)
+    source=DATA_BLOB(len(raw),ctypes.cast(source_buffer,ctypes.POINTER(ctypes.c_ubyte))); output=DATA_BLOB()
+    crypt32,kernel32=windows_crypto_api()
+    if not crypt32.CryptProtectData(ctypes.byref(source),'VibeWing API Key',None,None,None,1,ctypes.byref(output)):
+        raise ctypes.WinError()
+    try: return base64.b64encode(ctypes.string_at(output.pbData,output.cbData)).decode('ascii')
+    finally: kernel32.LocalFree(output.pbData)
+
+def dpapi_decrypt(value):
+    raw=base64.b64decode(value); source_buffer=ctypes.create_string_buffer(raw)
+    source=DATA_BLOB(len(raw),ctypes.cast(source_buffer,ctypes.POINTER(ctypes.c_ubyte))); output=DATA_BLOB()
+    crypt32,kernel32=windows_crypto_api()
+    if not crypt32.CryptUnprotectData(ctypes.byref(source),None,None,None,None,1,ctypes.byref(output)):
+        raise ctypes.WinError()
+    try: return ctypes.string_at(output.pbData,output.cbData).decode('utf-8')
+    finally: kernel32.LocalFree(output.pbData)
+
+def windows_credential(service):
+    try:
+        encrypted=windows_credential_store().get(service,'')
+        return dpapi_decrypt(encrypted) if encrypted else ''
+    except Exception:
+        return ''
+
+def set_windows_credential(service,key):
+    data=windows_credential_store()
+    if key: data[service]=dpapi_encrypt(key)
+    else: data.pop(service,None)
+    if data: save_windows_credential_store(data)
+    elif CREDENTIALS.exists(): CREDENTIALS.unlink()
 
 def generate_commit_message(task_id, cwd):
     try:
@@ -89,21 +147,24 @@ def load_chats():
 
 def get_api_key():
     if os.getenv('NVIDIA_API_KEY'): return os.getenv('NVIDIA_API_KEY')
+    if os.name=='nt': return windows_credential(SERVICE_NAME)
     if os.name == 'posix' and subprocess.run(['sh','-c','command -v security >/dev/null 2>&1']).returncode == 0:
         r=subprocess.run(['security','find-generic-password','-s',SERVICE_NAME,'-w'],capture_output=True,text=True)
         if r.returncode==0 and r.stdout.strip(): return r.stdout.strip()
     return ''
 
 def set_api_key(key):
+    if os.name=='nt':
+        set_windows_credential(SERVICE_NAME,key); return
     if os.name == 'posix' and subprocess.run(['sh','-c','command -v security >/dev/null 2>&1']).returncode == 0:
         subprocess.run(['security','delete-generic-password','-s',SERVICE_NAME],capture_output=True)
         if key: subprocess.run(['security','add-generic-password','-a',credential_account(),'-s',SERVICE_NAME,'-w',key],capture_output=True)
         return
-    # Windows fallback: environment variable for the current user/session.
     os.environ['NVIDIA_API_KEY']=key
 
 def provider_key(pid):
     if pid=='nvidia': return get_api_key()
+    if os.name=='nt': return windows_credential('vibewing-provider-'+pid)
     if os.name=='posix' and subprocess.run(['sh','-c','command -v security >/dev/null 2>&1']).returncode==0:
         service='vibewing-provider-'+pid
         r=subprocess.run(['security','find-generic-password','-s',service,'-w'],capture_output=True,text=True)
@@ -112,6 +173,8 @@ def provider_key(pid):
 
 def set_provider_key(pid,key):
     if pid=='nvidia': return set_api_key(key)
+    if os.name=='nt':
+        set_windows_credential('vibewing-provider-'+pid,key); return
     if os.name=='posix' and subprocess.run(['sh','-c','command -v security >/dev/null 2>&1']).returncode==0:
         service='vibewing-provider-'+pid; subprocess.run(['security','delete-generic-password','-s',service],capture_output=True)
         if key: subprocess.run(['security','add-generic-password','-a',credential_account(),'-s',service,'-w',key],capture_output=True)
@@ -613,6 +676,7 @@ class Handler(BaseHTTPRequestHandler):
                 s=load_settings()
                 incoming=d.get('providers')
                 if isinstance(incoming,list):
+                    previous_ids={str(x.get('id','')) for x in s.get('providers',[]) if x.get('id')}
                     clean=[]
                     for item in incoming:
                         if not isinstance(item,dict) or not item.get('name') or not item.get('base_url') or not item.get('model'): continue
@@ -624,6 +688,7 @@ class Handler(BaseHTTPRequestHandler):
                         names={str(k):str(v).strip() for k,v in names.items() if str(v).strip()}
                         clean.append({'id':pid,'name':str(item['name']).strip(),'base_url':str(item['base_url']).strip().rstrip('/'),'model':str(item.get('model') or models[0]).strip(),'models':models,'model_names':names})
                         if 'api_key' in item and item['api_key'].strip(): set_provider_key(pid,item['api_key'].strip())
+                    for removed_id in previous_ids-{x['id'] for x in clean}: set_provider_key(removed_id,'')
                     s['providers']=clean
                 models=d.get('models',s.get('models',[]))
                 if isinstance(models,list): s['models']=list(dict.fromkeys(str(x).strip() for x in models if str(x).strip()))

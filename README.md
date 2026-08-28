@@ -181,7 +181,7 @@ Application data is stored per user:
 
 Project configuration, settings, conversations, and logs remain local unless you explicitly send project context or logs to an AI provider. Those AI requests are sent directly to the provider URL you configured and are subject to that provider's privacy and retention terms.
 
-On macOS, API keys are stored in Keychain. On Windows, provider keys may need to be entered again after restarting VibeWing. Configuration exports must never include API keys.
+On macOS, API keys are stored in Keychain. On Windows, they are encrypted with Windows Data Protection API (DPAPI) for the current Windows user and persist across VibeWing restarts. Configuration exports never include API keys.
 
 Logs can contain private source paths, environment output, URLs, or access tokens printed by a project. Review selected logs before sending them to an AI provider or sharing them in an issue.
 
@@ -446,7 +446,7 @@ VibeWing 的本地后端只监听 `127.0.0.1`，并使用每次启动时随机�
 
 项目配置、设置、对话和日志默认保留在本机。只有当你明确把项目上下文或日志发送给 AI 平台时，相关内容才会发送到你配置的平台地址，并受该平台的隐私与数据保留条款约束。
 
-macOS 上的 API Key 保存在钥匙串中。Windows 上重启 VibeWing 后，可能需要重新输入平台 Key。配置导出不得包含 API Key。
+macOS 上的 API Key 保存在钥匙串中。Windows 上的 Key 使用 Windows 数据保护 API（DPAPI）为当前 Windows 用户加密，并会在 VibeWing 重启后继续保留。配置导出不会包含 API Key。
 
 日志可能包含私人源码路径、环境输出、URL，或项目打印的访问令牌。在发送给 AI 平台或分享到 Issue 之前，请检查并脱敏选中的日志。
 

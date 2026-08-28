@@ -15,6 +15,7 @@ RELEASE_CHECKLIST.md
 projects.json
 settings.json
 chats.json
+credentials.json
 logs/
 
 # OS and editor files
