@@ -1,6 +1,6 @@
 {
   "name": "vibewing",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Give your projects wings with a visual desktop workspace for running, diagnosing, building, and shipping.",
   "license": "MIT",
   "author": "Grakie93",
@@ -29,6 +29,8 @@
   "build": {
     "appId": "app.vibewing.desktop",
     "productName": "VibeWing",
+    "compression": "maximum",
+    "electronLanguages": ["en", "zh_CN"],
     "artifactName": "VibeWing-${version}-${os}-${arch}.${ext}",
     "directories": {
       "output": "dist",
@@ -37,10 +39,6 @@
     "files": [
       "electron-main.js",
       "preload.js",
-      "app.py",
-      "index.html",
-      "README.md",
-      "assets/brand/**/*",
       "build/icon.png",
       "build/icon-dark.png"
     ],

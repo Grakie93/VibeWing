@@ -61,5 +61,15 @@ class UpdateCheckTests(unittest.TestCase):
         request.assert_not_called()
 
 
+class ProjectStatusTests(unittest.TestCase):
+    def test_each_port_is_probed_once_per_status_refresh(self):
+        project = {'id': 'p1', 'frontend_port': '3000', 'backend_port': '8000'}
+        with patch.object(app, 'port_open', side_effect=[True, False]) as probe, \
+             patch.object(app, 'pid_alive', return_value=False):
+            result = app.project_view(project)
+        self.assertEqual(probe.call_count, 2)
+        self.assertTrue(result['frontend_running'])
+        self.assertFalse(result['backend_running'])
+
 if __name__ == '__main__':
     unittest.main()

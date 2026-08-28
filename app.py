@@ -501,7 +501,11 @@ def stop_service(project, key):
 
 def project_view(p):
     with BUILD_TASKS_LOCK: building=any(BUILD_TASKS.get(f"{p['id']}:{mode}",{}).get('status') in ('starting','running') for mode in ('production','test'))
-    return {**p, 'frontend_running': pid_alive(p.get('frontend_pid')) or port_open(p.get('frontend_port')), 'backend_running': pid_alive(p.get('backend_pid')) or port_open(p.get('backend_port')), 'frontend_port_open': port_open(p.get('frontend_port')), 'backend_port_open': port_open(p.get('backend_port')), 'frontend_building':building}
+    frontend_port_open=port_open(p.get('frontend_port'))
+    backend_port_open=port_open(p.get('backend_port'))
+    frontend_running=pid_alive(p.get('frontend_pid')) or frontend_port_open
+    backend_running=pid_alive(p.get('backend_pid')) or backend_port_open
+    return {**p, 'frontend_running':frontend_running, 'backend_running':backend_running, 'frontend_port_open':frontend_port_open, 'backend_port_open':backend_port_open, 'frontend_building':building}
 
 def service_log(project,key,limit=30000):
     path=LOGS/f"{project['id']}-{key}.log"
