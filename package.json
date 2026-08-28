@@ -61,10 +61,14 @@
       "icon": "build/icon.ico"
     },
     "nsis": {
+      "artifactName": "VibeWing-${version}-win-${arch}-Setup.${ext}",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
+    },
+    "portable": {
+      "artifactName": "VibeWing-${version}-win-${arch}-Portable.${ext}"
     }
   }
 }
