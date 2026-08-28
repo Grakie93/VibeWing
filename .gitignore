@@ -1,0 +1,36 @@
+node_modules/
+dist/
+backend-build/
+backend-dist/
+__pycache__/
+.electron-cache/
+.build-venv/
+.builder-cache/
+.npm-cache/
+*.spec
+RELEASE_CHECKLIST.md
+
+# Local VibeWing user data. Never commit these files: they may contain
+# project paths, conversations, logs, repository output, and access tokens.
+projects.json
+settings.json
+chats.json
+logs/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Local environment and signing material
+.env
+.env.*
+!.env.example
+*.p12
+*.cer
+*.provisionprofile
+*.mobileprovision
+*.key

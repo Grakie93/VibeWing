@@ -1,0 +1,70 @@
+{
+  "name": "vibewing",
+  "version": "0.1.0-beta.1",
+  "description": "Give your projects wings with a visual desktop workspace for running, diagnosing, building, and shipping.",
+  "license": "MIT",
+  "author": "Grakie93",
+  "homepage": "https://github.com/Grakie93/VibeWing#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Grakie93/VibeWing.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Grakie93/VibeWing/issues"
+  },
+  "main": "electron-main.js",
+  "scripts": {
+    "install:china": "electron_config_cache=./.electron-cache ELECTRON_CACHE=./.electron-cache ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ npm install --no-audit --no-fund",
+    "repair:electron": "electron_config_cache=./.electron-cache ELECTRON_CACHE=./.electron-cache ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ npm rebuild electron --foreground-scripts",
+    "start": "electron .",
+    "build:backend": "python3 scripts/build-backend.py",
+    "dist:mac": "npm run build:backend && electron-builder --mac",
+    "dist:win": "npm run build:backend && electron-builder --win",
+    "dist:dir": "npm run build:backend && electron-builder --dir"
+  },
+  "devDependencies": {
+    "electron": "^44.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "app.vibewing.desktop",
+    "productName": "VibeWing",
+    "artifactName": "VibeWing-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "electron-main.js",
+      "preload.js",
+      "app.py",
+      "index.html",
+      "README.md",
+      "assets/brand/**/*",
+      "build/icon.png",
+      "build/icon-dark.png"
+    ],
+    "extraResources": [
+      {
+        "from": "backend-dist",
+        "to": "backend",
+        "filter": ["**/*"]
+      }
+    ],
+    "mac": {
+      "target": ["dmg", "zip"],
+      "icon": "build/icon.icns",
+      "category": "public.app-category.developer-tools"
+    },
+    "win": {
+      "target": ["nsis", "portable"],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
