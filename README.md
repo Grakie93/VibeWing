@@ -16,7 +16,7 @@
 
 ## Why VibeWing?
 
-Vibe coding makes creating software easier, but the surrounding work still often requires terminal knowledge: starting separate frontend and backend services, finding ports, reading logs, building releases, and operating Git. VibeWing puts those repeatable tasks into one desktop workspace so your coding AI can focus on code.
+Vibe coding makes creating software easier, but the surrounding work still often requires terminal knowledge: starting separate frontend and backend services, finding ports, reading logs, building releases, and operating Git. VibeWing puts those repeatable tasks into one desktop workspace so your Coding Agent can focus on code.
 
 ## Download and install
 
@@ -40,9 +40,9 @@ Open [GitHub Releases](https://github.com/Grakie93/VibeWing/releases/latest), ex
 
 > VibeWing includes its own local backend, but your imported projects still need their own runtimes and dependencies. For example, Node projects need Node.js and installed packages; Python projects need their project environment.
 
-### Ask your Coding AI to help install
+### Ask your Coding Agent to help install
 
-Copy this prompt to your Coding AI if you prefer guided installation:
+Copy this prompt to your Coding Agent if you prefer guided installation:
 
 ```text
 Help me install VibeWing from the official GitHub repository:
@@ -142,6 +142,39 @@ Click **Import Project**, then configure:
 - **Backend command and port**: for example `python manage.py runserver` and `8000`.
 
 For a full-stack project that uses one directory, use the same root where appropriate. VibeWing executes the commands you configure in those working directories.
+
+#### Ask your Coding Agent to identify the project configuration
+
+If you are unsure what to enter, open the project in your Coding Agent and copy the prompt below. The agent should inspect the actual files and return values that you can paste directly into VibeWing.
+
+```text
+Please inspect this project and tell me exactly how to configure it in VibeWing.
+
+Read the actual project files first, including package.json scripts, lockfiles,
+README files, environment examples, backend entry points, and framework config.
+Do not guess values that cannot be confirmed from the repository.
+
+Return the following fields in this exact order, with one copyable value per field:
+
+1. Project name
+2. Project root (the Git repository root, as an absolute path)
+3. Frontend working directory (absolute path; use the project root if shared)
+4. Frontend start command (leave empty if there is no frontend)
+5. Frontend port (leave empty if it is assigned dynamically)
+6. Backend working directory (absolute path; use the project root if shared)
+7. Backend start command (leave empty if there is no backend)
+8. Backend port (leave empty if it is assigned dynamically)
+
+Requirements:
+- Use commands that are already defined or documented by this project.
+- Use the package manager indicated by the lockfile.
+- Do not install dependencies, edit files, or start the project unless I ask.
+- On Windows, paths must include the drive letter, for example
+  D:\Projects\MyApp. Preserve backslashes in the values I should paste.
+- On macOS and Linux, use absolute paths beginning with /.
+- If frontend and backend are separate, identify both directories independently.
+- After the eight fields, briefly explain which files proved each command and port.
+```
 
 ### 3. Run and diagnose
 
@@ -278,11 +311,11 @@ Copyright © 2026 Grakie93. The MIT license covers the source code, not permissi
 
 **让你的项目轻盈起飞。**
 
-VibeWing 是面向 Vibe Coding 用户的跨平台桌面工作台，把本地项目的前后端启动、重启、停止、端口、日志、构建和 Git 工作流集中到一个可视化界面中，让 Coding AI 更专注于编写和修复代码。
+VibeWing 是面向 Vibe Coding 用户的跨平台桌面工作台，把本地项目的前后端启动、重启、停止、端口、日志、构建和 Git 工作流集中到一个可视化界面中，让 Coding Agent 更专注于编写和修复代码。
 
 ## 为什么选择 VibeWing？
 
-Vibe Coding 让开发软件变得更容易，但项目周边工作通常仍然需要终端知识：启动相互独立的前后端服务、查找端口、阅读日志、构建产物，以及操作 Git。VibeWing 把这些重复工作集中到一个桌面工作台，让你的 Coding AI 专注于编写和修复代码。
+Vibe Coding 让开发软件变得更容易，但项目周边工作通常仍然需要终端知识：启动相互独立的前后端服务、查找端口、阅读日志、构建产物，以及操作 Git。VibeWing 把这些重复工作集中到一个桌面工作台，让你的 Coding Agent 专注于编写和修复代码。
 
 ## 下载与安装
 
@@ -306,9 +339,9 @@ Vibe Coding 让开发软件变得更容易，但项目周边工作通常仍然�
 
 VibeWing 自身不要求用户安装 Python，但不会替项目安装运行环境。Node 项目仍需 Node.js 和依赖，Python 项目仍需项目自己的 Python 环境。
 
-### 让 Coding AI 帮你安装
+### 让 Coding Agent 帮你安装
 
-如果希望让 Coding AI 手把手指导，可以复制下面这段话：
+如果希望让 Coding Agent 手把手指导，可以复制下面这段话：
 
 ```text
 请帮我从 VibeWing 官方 GitHub 仓库安装软件：
@@ -409,9 +442,41 @@ AI 功能不是必需项。启动项目、查看日志、构建和 Git 操作都
 
 如果全栈项目使用同一个目录，可以在适当位置填写相同的项目主目录。VibeWing 会在你配置的工作目录中执行对应命令。
 
+#### 让 Coding Agent 识别项目配置
+
+如果不知道每一项应该怎么填写，可以先用 Coding Agent 打开项目，再复制下面这段提示词。Agent 应当先检查真实项目文件，然后返回可以直接粘贴到 VibeWing 的配置值。
+
+```text
+请检查当前项目，并准确告诉我应该如何在 VibeWing 中配置这个项目。
+
+请先读取真实项目文件，包括 package.json 中的 scripts、锁文件、README、
+环境变量示例、后端入口文件和框架配置。无法从仓库确认的内容不要猜测。
+
+请严格按照以下顺序返回，每个字段提供一个可以直接复制粘贴的值：
+
+1. 项目名称
+2. 项目主目录（Git 仓库根目录，使用绝对路径）
+3. 前端工作目录（绝对路径；共用目录时填写项目主目录）
+4. 前端启动命令（没有前端则留空）
+5. 前端端口（动态分配则留空）
+6. 后端工作目录（绝对路径；共用目录时填写项目主目录）
+7. 后端启动命令（没有后端则留空）
+8. 后端端口（动态分配则留空）
+
+要求：
+- 只使用项目中已经定义或明确记录的命令。
+- 根据锁文件选择项目实际使用的包管理器。
+- 除非我另行要求，不要安装依赖、修改文件或启动项目。
+- Windows 路径必须包含盘符，例如 D:\Projects\MyApp，并保留需要
+  粘贴到 VibeWing 中的反斜杠。
+- macOS 和 Linux 使用以 / 开头的绝对路径。
+- 如果前后端分离，请分别识别两个工作目录。
+- 返回八个字段后，简要说明你根据哪些文件确认了命令和端口。
+```
+
 ### 3. 运行与诊断
 
-使用项目卡片中的 **启动**、**重启** 和 **停止**。打开 **查看日志** 检查输出。选中相关日志后，可以选择 **问问 AI** 将日志附加到对话，或复制给其他 Coding AI。
+使用项目卡片中的 **启动**、**重启** 和 **停止**。打开 **查看日志** 检查输出。选中相关日志后，可以选择 **问问 AI** 将日志附加到对话，或复制给其他 Coding Agent。
 
 ### 4. 使用源代码管理
 
