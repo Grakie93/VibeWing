@@ -192,6 +192,7 @@ VibeWing can execute configured shell commands and Git operations on local repos
 ### A service does not start
 
 - Confirm the configured working directory exists.
+- On Windows, use a complete absolute path including the drive letter, such as `D:\Projects\MyApp`.
 - For npm, pnpm, Yarn, or Bun commands, confirm that directory contains `package.json`.
 - Run the project's dependency installation once if needed.
 - Check **View Logs** for the command, exit code, and error output.
@@ -457,6 +458,7 @@ VibeWing 可以在本地仓库中执行配置好的终端命令和 Git 操作。
 ### 服务无法启动
 
 - 确认配置的工作目录真实存在。
+- Windows 上请填写包含盘符的完整绝对路径，例如 `D:\Projects\MyApp`。
 - 对于 npm、pnpm、Yarn 或 Bun 命令，确认对应目录包含 `package.json`。
 - 如果项目尚未安装依赖，请先执行一次项目自己的依赖安装命令。
 - 打开 **查看日志**，检查命令、退出码和错误输出。

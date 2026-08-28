@@ -11,8 +11,14 @@ if (process.platform === 'darwin') app.setActivationPolicy('regular');
 
 let backend;
 let cleanedUp = false;
+let quitting = false;
+let backendRestartTimer;
 let accessToken = '';
 let mainWindow;
+let backendLaunch;
+let backendPort;
+let backendDataDir;
+let backendRuntimePath;
 const lightIconPath = path.join(__dirname, 'build', 'icon.png');
 const darkIconPath = path.join(__dirname, 'build', 'icon-dark.png');
 ipcMain.handle('vibewing:copy-text', (_event, value) => {
@@ -75,8 +81,38 @@ function backendCommand() {
 function cleanupBackend() {
   if (cleanedUp) return;
   cleanedUp = true;
+  clearTimeout(backendRestartTimer);
   if (backend && backend.exitCode === null) backend.kill('SIGTERM');
   backend = undefined;
+}
+
+function appendBackendLog(message) {
+  if (!backendDataDir) return;
+  try { fs.appendFileSync(path.join(backendDataDir, 'vibewing-backend.log'), `[${new Date().toISOString()}] ${message}\n`); } catch {}
+}
+
+function launchBackend() {
+  const child = spawn(backendLaunch.command, backendLaunch.args, {
+    cwd: app.isPackaged ? process.resourcesPath : __dirname,
+    windowsHide: true,
+    env: { ...process.env, PATH: backendRuntimePath, PYTHONUTF8: '1', VIBEWING_DATA_DIR: backendDataDir, VIBEWING_PORT: String(backendPort), VIBEWING_ACCESS_TOKEN: accessToken },
+  });
+  backend = child;
+  child.stdout?.on('data', data => appendBackendLog(`stdout: ${String(data).trimEnd()}`));
+  child.stderr?.on('data', data => appendBackendLog(`stderr: ${String(data).trimEnd()}`));
+  child.on('error', error => appendBackendLog(`launch error: ${error.stack || error.message}`));
+  child.on('exit', (code, signal) => {
+    appendBackendLog(`backend exited: code=${code} signal=${signal || ''}`);
+    if (backend === child) backend = undefined;
+    if (!quitting && mainWindow && !mainWindow.isDestroyed()) {
+      clearTimeout(backendRestartTimer);
+      backendRestartTimer = setTimeout(() => {
+        appendBackendLog('restarting backend');
+        launchBackend();
+      }, 500);
+    }
+  });
+  return child;
 }
 
 function waitForServer(port, token, tries = 120) {
@@ -98,24 +134,19 @@ function waitForServer(port, token, tries = 120) {
 }
 
 async function createWindow() {
-  const dataDir = app.getPath('userData');
-  fs.mkdirSync(dataDir, { recursive: true });
-  const port = await freePort();
+  backendDataDir = app.getPath('userData');
+  fs.mkdirSync(backendDataDir, { recursive: true });
+  backendPort = await freePort();
   const iconPath = lightIconPath;
   if (process.platform === 'darwin' && fs.existsSync(iconPath)) app.dock.setIcon(nativeImage.createFromPath(iconPath));
   accessToken = crypto.randomBytes(32).toString('hex');
-  const launch = backendCommand();
-  const runtimePath = commandPath();
-  backend = spawn(launch.command, launch.args, {
-    cwd: app.isPackaged ? process.resourcesPath : __dirname,
-    windowsHide: true,
-    env: { ...process.env, PATH: runtimePath, VIBEWING_DATA_DIR: dataDir, VIBEWING_PORT: String(port), VIBEWING_ACCESS_TOKEN: accessToken },
-  });
-  backend.stderr.on('data', data => console.error(String(data)));
+  backendLaunch = backendCommand();
+  backendRuntimePath = commandPath();
+  launchBackend();
   try {
-    await waitForServer(port, accessToken);
+    await waitForServer(backendPort, accessToken);
   } catch (error) {
-    dialog.showErrorBox('VibeWing 启动失败', `${error.message}\n\n${launch.command}`);
+    dialog.showErrorBox('VibeWing 启动失败', `${error.message}\n\n${backendLaunch.command}\n\n日志：${path.join(backendDataDir, 'vibewing-backend.log')}`);
     return;
   }
   const window = mainWindow = new BrowserWindow({
@@ -129,11 +160,12 @@ async function createWindow() {
     webPreferences: { contextIsolation: true, sandbox: true, preload: path.join(__dirname, 'preload.js') },
   });
   window.on('closed', () => { if (mainWindow === window) mainWindow = undefined; });
-  await window.loadURL(`http://127.0.0.1:${port}/?token=${encodeURIComponent(accessToken)}`, { extraHeaders: `X-VibeWing-Token: ${accessToken}\n` });
+  await window.loadURL(`http://127.0.0.1:${backendPort}/?token=${encodeURIComponent(accessToken)}`, { extraHeaders: `X-VibeWing-Token: ${accessToken}\n` });
   window.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
 }
 
 app.whenReady().then(createWindow);
 app.on('window-all-closed', () => app.quit());
+app.once('before-quit', () => { quitting = true; });
 app.once('before-quit', cleanupBackend);
 app.once('will-quit', cleanupBackend);

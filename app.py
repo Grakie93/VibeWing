@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import base64, ctypes, json, os, signal, socket, subprocess, threading, time, shlex, re, sys
+import base64, ctypes, json, ntpath, os, signal, socket, subprocess, threading, time, shlex, re, sys, traceback
 from pathlib import Path
 from urllib.parse import urlparse
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
@@ -135,7 +135,7 @@ def load_settings():
         if p.get('model') and p['model'] not in p['models']: p['models'].append(p['model'])
     return defaults
 
-def save_settings(data): SETTINGS.write_text(json.dumps(data,ensure_ascii=False,indent=2))
+def save_settings(data): SETTINGS.write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding='utf-8')
 
 def load_chats():
     """Load saved VibeWing conversations."""
@@ -301,11 +301,27 @@ def nonstream_chat_completion(endpoint, headers, payload, timeout=600):
 
 def load():
     if not DATA.exists(): return []
-    try: return json.loads(DATA.read_text())
+    try: return json.loads(DATA.read_text(encoding='utf-8'))
     except Exception: return []
 
 def save(items):
-    DATA.write_text(json.dumps(items, ensure_ascii=False, indent=2))
+    temporary=DATA.with_suffix('.tmp')
+    temporary.write_text(json.dumps(items, ensure_ascii=False, indent=2),encoding='utf-8')
+    temporary.replace(DATA)
+
+def normalize_project_path(value):
+    value=str(value or '').strip().strip('"')
+    if os.name!='nt': return os.path.expanduser(value)
+    value=value.replace('/','\\')
+    # Some browser/file-picker representations use /D:/folder. Accept that
+    # form, but reject drive-relative paths such as /folder: their drive is
+    # ambiguous and often caused VibeWing to start in its own install drive.
+    if re.match(r'^\\[A-Za-z]:\\',value): value=value[1:]
+    if value.startswith('\\') and not value.startswith('\\\\'):
+        raise ValueError('Windows 路径缺少盘符，请填写完整路径，例如 D:\\Projects\\MyApp')
+    if re.match(r'^[A-Za-z]:[^\\]',value):
+        raise ValueError('Windows 路径必须包含盘符和反斜杠，例如 D:\\Projects\\MyApp')
+    return ntpath.normpath(value) if value else ''
 
 def run(cmd, cwd, timeout=12):
     try:
@@ -401,14 +417,15 @@ def start_service(project, key):
     if pid_alive(project.get(pid_key)) or port_open(project.get(key+'_port')): return {'ok': True, 'message': '已经在运行'}
     log = LOGS; log.mkdir(exist_ok=True)
     log_path=log / f"{project['id']}-{key}.log"
-    f = open(log_path, 'a', buffering=1)
+    f = open(log_path, 'a', buffering=1, encoding='utf-8', errors='replace')
     f.write(f"\n[{time.strftime('%Y-%m-%d %H:%M:%S')}] $ {cmd}\n")
     if os.name == 'nt': argv=['cmd.exe','/d','/s','/c',cmd]
     else:
         shell=os.getenv('SHELL') or '/bin/zsh'
         argv=[shell,'-l','-c',cmd]
     try:
-        p = subprocess.Popen(argv, cwd=cwd, stdout=f, stderr=subprocess.STDOUT, start_new_session=True, env=os.environ.copy())
+        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name=='nt' else 0
+        p = subprocess.Popen(argv, cwd=cwd, stdout=f, stderr=subprocess.STDOUT, start_new_session=os.name!='nt', creationflags=creationflags, env=os.environ.copy())
     except Exception as e:
         f.write('启动失败：'+str(e)+'\n'); f.close(); return {'ok':False,'error':str(e)}
     f.close()
@@ -497,10 +514,11 @@ def run_frontend_build(project, mode):
     task=f"{project['id']}:{mode}"
     try:
         cmd,cwd=frontend_build_command(project,mode); log_dir=LOGS; log_dir.mkdir(exist_ok=True); log_path=log_dir/f"{project['id']}-frontend.log"
-        with log_path.open('a',buffering=1) as f:
+        with log_path.open('a',buffering=1,encoding='utf-8',errors='replace') as f:
             label='生产环境' if mode=='production' else '测试环境'; f.write(f'\n[{time.strftime("%Y-%m-%d %H:%M:%S")}] 开始构建（{label}）\n$ {cmd}\n')
             argv=['cmd.exe','/d','/s','/c',cmd] if os.name=='nt' else [os.getenv('SHELL') or '/bin/zsh','-l','-c',cmd]
-            p=subprocess.Popen(argv,cwd=cwd,stdout=f,stderr=subprocess.STDOUT,start_new_session=True,env=os.environ.copy())
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name=='nt' else 0
+            p=subprocess.Popen(argv,cwd=cwd,stdout=f,stderr=subprocess.STDOUT,start_new_session=os.name!='nt',creationflags=creationflags,env=os.environ.copy())
             with BUILD_TASKS_LOCK: BUILD_TASKS[task]={'status':'running','command':cmd}
             code=p.wait(); f.write(f'\n[{time.strftime("%Y-%m-%d %H:%M:%S")}] '+('构建完成' if code==0 else f'构建失败（退出代码 {code}）')+'\n')
         with BUILD_TASKS_LOCK: BUILD_TASKS[task]={'status':'done' if code==0 else 'error','code':code,'command':cmd}
@@ -508,11 +526,21 @@ def run_frontend_build(project, mode):
         with BUILD_TASKS_LOCK: BUILD_TASKS[task]={'status':'error','error':str(e)}
         try:
             LOGS.mkdir(exist_ok=True)
-            with (LOGS/f"{project['id']}-frontend.log").open('a') as f: f.write('\n构建失败：'+str(e)+'\n')
+            with (LOGS/f"{project['id']}-frontend.log").open('a',encoding='utf-8',errors='replace') as f: f.write('\n构建失败：'+str(e)+'\n')
         except Exception: pass
 
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args): pass
+    def handle_one_request(self):
+        try: return super().handle_one_request()
+        except (BrokenPipeError,ConnectionResetError): return
+        except Exception as e:
+            try:
+                LOGS.mkdir(exist_ok=True)
+                with (LOGS/'vibewing-api-errors.log').open('a',encoding='utf-8',errors='replace') as f:
+                    f.write(f'\n[{time.strftime("%Y-%m-%d %H:%M:%S")}] {self.command if hasattr(self,"command") else "?"} {getattr(self,"path","")}\n{traceback.format_exc()}')
+                self.send_json({'error':'VibeWing 本地服务处理失败：'+str(e)},500)
+            except Exception: pass
     def authorized(self):
         return not ACCESS_TOKEN or self.headers.get('X-VibeWing-Token','')==ACCESS_TOKEN
     def reject_unauthorized(self):
@@ -659,15 +687,20 @@ class Handler(BaseHTTPRequestHandler):
         with LOCK:
             items=load()
             if path=='/api/projects':
-                base=os.path.expanduser(d.get('path','')); p={'id':str(int(time.time()*1000)),'name':d.get('name','未命名项目'),'path':base,'frontend_path':os.path.expanduser(d.get('frontend_path','')) or base,'backend_path':os.path.expanduser(d.get('backend_path','')) or base,'frontend_cmd':d.get('frontend_cmd',''),'backend_cmd':d.get('backend_cmd',''),'frontend_port':d.get('frontend_port',''),'backend_port':d.get('backend_port',''),'frontend_pid':None,'backend_pid':None}; items.append(p); save(items); return self.send_json(project_view(p))
+                try:
+                    base=normalize_project_path(d.get('path','')); frontend_path=normalize_project_path(d.get('frontend_path','')) or base; backend_path=normalize_project_path(d.get('backend_path','')) or base
+                except ValueError as e: return self.send_json({'error':str(e)},400)
+                p={'id':str(int(time.time()*1000)),'name':d.get('name','未命名项目'),'path':base,'frontend_path':frontend_path,'backend_path':backend_path,'frontend_cmd':d.get('frontend_cmd',''),'backend_cmd':d.get('backend_cmd',''),'frontend_port':d.get('frontend_port',''),'backend_port':d.get('backend_port',''),'frontend_pid':None,'backend_pid':None}; items.append(p); save(items); return self.send_json(project_view(p))
             if path=='/api/projects/update':
                 p=next((x for x in items if x['id']==d.get('id')),None)
                 if not p: return self.send_json({'error':'项目不存在'},404)
                 for key in ('name','frontend_cmd','backend_cmd','frontend_port','backend_port'):
                     if key in d: p[key]=d.get(key,'').strip()
-                if 'path' in d: p['path']=os.path.expanduser(d.get('path','').strip())
-                for key in ('frontend_path','backend_path'):
-                    if key in d: p[key]=os.path.expanduser(d.get(key,'').strip()) or p['path']
+                try:
+                    if 'path' in d: p['path']=normalize_project_path(d.get('path',''))
+                    for key in ('frontend_path','backend_path'):
+                        if key in d: p[key]=normalize_project_path(d.get(key,'')) or p['path']
+                except ValueError as e: return self.send_json({'error':str(e)},400)
                 save(items); return self.send_json(project_view(p))
             if path=='/api/settings':
                 key=d.get('nvidia_api_key','').strip()
