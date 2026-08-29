@@ -20,7 +20,7 @@ let refreshTimer: number | undefined
 
 async function refresh() { if (!document.hidden) projects.value = await desktop.listProjects() }
 function openEditor(project: ProjectView | null = null) { editing.value = project; editorOpen.value = true }
-async function save(project: Project) { await desktop.saveProject(project); editorOpen.value = false; await refresh() }
+async function save(project: Project) { try { await desktop.saveProject(project); editorOpen.value = false; editing.value = null; await refresh() } catch (error) { alert(`保存项目失败：${String(error)}`) } }
 async function remove(id: string) { if (confirm('移除项目配置？不会删除项目文件。')) { await desktop.deleteProject(id); editorOpen.value = false; await refresh() } }
 
 onMounted(async () => {
