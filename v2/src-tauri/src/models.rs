@@ -94,7 +94,28 @@ pub struct Settings {
     pub theme: Theme,
     pub check_updates: bool,
     pub default_chat_model: String,
-    pub providers: Vec<serde_json::Value>,
+    pub providers: Vec<Provider>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(default)]
+pub struct Provider {
+    pub id: String,
+    pub name: String,
+    pub base_url: String,
+    pub model: String,
+    pub models: Vec<String>,
+    pub model_names: std::collections::HashMap<String, String>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(default)]
+pub struct Chat {
+    pub id: String,
+    pub title: String,
+    pub model: String,
+    pub messages: Vec<crate::ai::ChatMessage>,
+    pub updated_at: i64,
 }
 
 impl Default for Settings {

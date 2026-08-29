@@ -1,4 +1,7 @@
+mod ai;
 mod commands;
+mod credentials;
+mod git;
 mod models;
 mod processes;
 mod storage;
@@ -27,6 +30,15 @@ pub fn run() {
             commands::read_log,
             commands::get_settings,
             commands::save_settings,
+            commands::list_chats,
+            commands::save_chats,
+            commands::git_status,
+            commands::git_stage,
+            commands::git_commit,
+            commands::git_push,
+            commands::provider_key_status,
+            commands::save_provider_key,
+            commands::ask_ai,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

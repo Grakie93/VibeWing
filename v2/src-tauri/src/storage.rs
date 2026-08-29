@@ -6,12 +6,13 @@ use std::{
 
 use tauri::{AppHandle, Manager};
 
-use crate::models::{Project, Settings};
+use crate::models::{Chat, Project, Settings};
 
 pub struct AppState {
     pub data_dir: PathBuf,
     pub projects: Mutex<Vec<Project>>,
     pub settings: Mutex<Settings>,
+    pub chats: Mutex<Vec<Chat>>,
 }
 
 fn read_json<T: serde::de::DeserializeOwned + Default>(path: &Path) -> T {
@@ -73,6 +74,7 @@ impl AppState {
         Ok(Self {
             projects: Mutex::new(read_json(&data_dir.join("projects.json"))),
             settings: Mutex::new(read_json(&data_dir.join("settings.json"))),
+            chats: Mutex::new(read_json(&data_dir.join("chats.json"))),
             data_dir,
         })
     }
@@ -83,6 +85,10 @@ impl AppState {
 
     pub fn save_settings(&self, settings: &Settings) -> Result<(), String> {
         write_json(&self.data_dir.join("settings.json"), settings)
+    }
+
+    pub fn save_chats(&self, chats: &[Chat]) -> Result<(), String> {
+        write_json(&self.data_dir.join("chats.json"), &chats)
     }
 
     pub fn log_path(&self, project_id: &str, service: &str) -> PathBuf {

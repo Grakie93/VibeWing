@@ -6,7 +6,8 @@ use std::{
 use tauri::State;
 
 use crate::{
-    models::{Project, ProjectView, ServiceKind, Settings},
+    ai, credentials, git,
+    models::{Chat, Project, ProjectView, ServiceKind, Settings},
     processes,
     storage::AppState,
 };
@@ -137,4 +138,94 @@ pub fn save_settings(state: State<'_, AppState>, settings: Settings) -> Result<(
     state.save_settings(&settings)?;
     *state.settings.lock().map_err(|error| error.to_string())? = settings;
     Ok(())
+}
+
+#[tauri::command]
+pub fn list_chats(state: State<'_, AppState>) -> Result<Vec<Chat>, String> {
+    state.chats.lock().map(|v| v.clone()).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn save_chats(state: State<'_, AppState>, chats: Vec<Chat>) -> Result<(), String> {
+    state.save_chats(&chats)?;
+    *state.chats.lock().map_err(|e| e.to_string())? = chats;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn git_status(
+    state: State<'_, AppState>,
+    id: String,
+    scope: String,
+) -> Result<Vec<git::GitFile>, String> {
+    let projects = state.projects.lock().map_err(|e| e.to_string())?;
+    let project = projects.iter().find(|p| p.id == id).ok_or("项目不存在")?;
+    git::root(project, &scope).and_then(|cwd| git::files(&cwd))
+}
+#[tauri::command]
+pub fn git_stage(
+    state: State<'_, AppState>,
+    id: String,
+    scope: String,
+    paths: Vec<String>,
+) -> Result<(), String> {
+    let projects = state.projects.lock().map_err(|e| e.to_string())?;
+    let project = projects.iter().find(|p| p.id == id).ok_or("项目不存在")?;
+    git::root(project, &scope).and_then(|cwd| git::stage(&cwd, &paths))
+}
+#[tauri::command]
+pub fn git_commit(
+    state: State<'_, AppState>,
+    id: String,
+    scope: String,
+    message: String,
+) -> Result<String, String> {
+    if message.trim().is_empty() {
+        return Err("提交信息不能为空".into());
+    }
+    let projects = state.projects.lock().map_err(|e| e.to_string())?;
+    let project = projects.iter().find(|p| p.id == id).ok_or("项目不存在")?;
+    git::root(project, &scope).and_then(|cwd| git::commit(&cwd, message.trim()))
+}
+#[tauri::command]
+pub fn git_push(state: State<'_, AppState>, id: String, scope: String) -> Result<(), String> {
+    let projects = state.projects.lock().map_err(|e| e.to_string())?;
+    let project = projects.iter().find(|p| p.id == id).ok_or("项目不存在")?;
+    git::root(project, &scope).and_then(|cwd| git::push(&cwd))
+}
+
+#[tauri::command]
+pub fn provider_key_status(provider_id: String) -> Result<bool, String> {
+    Ok(credentials::get(&provider_id)
+        .map(|value| !value.is_empty())
+        .unwrap_or(false))
+}
+
+#[tauri::command]
+pub fn save_provider_key(provider_id: String, key: String) -> Result<(), String> {
+    credentials::set(&provider_id, &key)
+}
+
+#[tauri::command]
+pub async fn ask_ai(
+    state: State<'_, AppState>,
+    request: ai::ChatRequest,
+) -> Result<ai::ChatResponse, String> {
+    let settings = state.settings.lock().map_err(|e| e.to_string())?.clone();
+    let provider = settings
+        .providers
+        .iter()
+        .find(|provider| {
+            provider.id == request.provider_id
+        })
+        .ok_or("模型平台不存在")?;
+    let base = provider
+        .base_url.as_str();
+    if base.is_empty() { return Err("模型平台缺少 API 地址".into()); }
+    let key = credentials::get(&request.provider_id)
+        .map_err(|_| "请先配置该平台的 API Key".to_string())?;
+    if key.is_empty() {
+        return Err("请先配置该平台的 API Key".into());
+    }
+    ai::complete(request, base, &key).await
 }

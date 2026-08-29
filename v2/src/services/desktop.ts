@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
-import type { Project, ProjectView, ServiceKind, Settings } from '../types'
+import type { Chat, Project, ProjectView, ServiceKind, Settings } from '../types'
 
 export const desktop = {
   listProjects: () => invoke<ProjectView[]>('list_projects'),
@@ -10,4 +10,13 @@ export const desktop = {
   readLog: (id: string, service: ServiceKind) => invoke<string>('read_log', { id, service }),
   getSettings: () => invoke<Settings>('get_settings'),
   saveSettings: (settings: Settings) => invoke<void>('save_settings', { settings }),
+  listChats: () => invoke<Chat[]>('list_chats'),
+  saveChats: (chats: Chat[]) => invoke<void>('save_chats', { chats }),
+  gitStatus: (id: string, scope: string) => invoke<{path:string;status:string;staged:boolean;unstaged:boolean}[]>('git_status', { id, scope }),
+  gitStage: (id: string, scope: string, paths: string[]) => invoke<void>('git_stage', { id, scope, paths }),
+  gitCommit: (id: string, scope: string, message: string) => invoke<string>('git_commit', { id, scope, message }),
+  gitPush: (id: string, scope: string) => invoke<void>('git_push', { id, scope }),
+  providerKeyStatus: (providerId: string) => invoke<boolean>('provider_key_status', { providerId }),
+  saveProviderKey: (providerId: string, key: string) => invoke<void>('save_provider_key', { providerId, key }),
+  askAi: (request: {provider_id:string;model:string;messages:{role:string;content:string}[]}) => invoke<{content:string;elapsed_ms:number}>('ask_ai', { request }),
 }

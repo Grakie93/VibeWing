@@ -24,8 +24,12 @@ export interface Settings {
   theme: { accent: string; bg: string; card: string; preset: string }
   check_updates: boolean
   default_chat_model: string
-  providers: unknown[]
+  providers: Provider[]
 }
+
+export interface Provider { id:string; name:string; base_url:string; model:string; models?:string[]; model_names?:Record<string,string> }
+export interface ChatMessage { role:'user'|'assistant'; content:string }
+export interface Chat { id:string; title:string; model:string; messages:ChatMessage[]; updated_at:number }
 
 export const emptyProject = (): Project => ({
   id: '', name: '', path: '', frontend_path: '', backend_path: '',
