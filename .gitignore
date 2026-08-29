@@ -1,4 +1,10 @@
 node_modules/
+.tooling/
+src-tauri/target/
+dist-tauri/
+v2/node_modules/
+v2/dist/
+v2/src-tauri/target/
 dist/
 backend-build/
 backend-dist/
