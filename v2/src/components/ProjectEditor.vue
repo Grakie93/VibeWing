@@ -6,8 +6,9 @@ import { emptyProject } from '../types'
 const props = defineProps<{ open: boolean; project?: Project | null }>()
 const emit = defineEmits<{ close: []; save: [project: Project]; remove: [id: string] }>()
 const form = reactive<Project>(emptyProject())
-watch(() => [props.open, props.project], () => Object.assign(form, props.project ? structuredClone(props.project) : emptyProject()), { immediate: true })
-const submit = () => emit('save', structuredClone(form) as Project)
+const clone = (value: Project): Project => JSON.parse(JSON.stringify(value))
+watch(() => [props.open, props.project], () => Object.assign(form, props.project ? clone(props.project) : emptyProject()), { immediate: true })
+const submit = () => emit('save', clone(form) as Project)
 </script>
 
 <template>
