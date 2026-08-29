@@ -61,3 +61,12 @@ pub fn commit(cwd: &str, message: &str) -> Result<String, String> {
 pub fn push(cwd: &str) -> Result<(), String> {
     run(cwd, &["push"]).map(|_| ())
 }
+pub fn branches(cwd: &str) -> Result<Vec<String>, String> {
+    Ok(run(cwd, &["branch", "--format=%(refname:short)"])?.lines().map(str::trim).filter(|s| !s.is_empty()).map(String::from).collect())
+}
+pub fn current_branch(cwd: &str) -> Result<String, String> { run(cwd, &["branch", "--show-current"]).map(|s| s.trim().to_string()) }
+pub fn switch_branch(cwd: &str, branch: &str) -> Result<(), String> {
+    if branch.trim().is_empty() || branch.contains([' ', ';', '&', '|']) { return Err("无效分支名称".into()); }
+    run(cwd, &["switch", branch.trim()]).map(|_| ())
+}
+pub fn pull(cwd: &str) -> Result<(), String> { run(cwd, &["pull", "--ff-only"]).map(|_| ()) }

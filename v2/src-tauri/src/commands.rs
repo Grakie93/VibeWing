@@ -193,6 +193,30 @@ pub fn git_push(state: State<'_, AppState>, id: String, scope: String) -> Result
     let project = projects.iter().find(|p| p.id == id).ok_or("项目不存在")?;
     git::root(project, &scope).and_then(|cwd| git::push(&cwd))
 }
+#[tauri::command]
+pub fn git_branches(state: State<'_, AppState>, id: String, scope: String) -> Result<Vec<String>, String> {
+    let projects = state.projects.lock().map_err(|e| e.to_string())?;
+    let project = projects.iter().find(|p| p.id == id).ok_or("项目不存在")?;
+    git::root(project, &scope).and_then(|cwd| git::branches(&cwd))
+}
+#[tauri::command]
+pub fn git_current_branch(state: State<'_, AppState>, id: String, scope: String) -> Result<String, String> {
+    let projects = state.projects.lock().map_err(|e| e.to_string())?;
+    let project = projects.iter().find(|p| p.id == id).ok_or("项目不存在")?;
+    git::root(project, &scope).and_then(|cwd| git::current_branch(&cwd))
+}
+#[tauri::command]
+pub fn git_switch_branch(state: State<'_, AppState>, id: String, scope: String, branch: String) -> Result<(), String> {
+    let projects = state.projects.lock().map_err(|e| e.to_string())?;
+    let project = projects.iter().find(|p| p.id == id).ok_or("项目不存在")?;
+    git::root(project, &scope).and_then(|cwd| git::switch_branch(&cwd, &branch))
+}
+#[tauri::command]
+pub fn git_pull(state: State<'_, AppState>, id: String, scope: String) -> Result<(), String> {
+    let projects = state.projects.lock().map_err(|e| e.to_string())?;
+    let project = projects.iter().find(|p| p.id == id).ok_or("项目不存在")?;
+    git::root(project, &scope).and_then(|cwd| git::pull(&cwd))
+}
 
 #[tauri::command]
 pub fn provider_key_status(provider_id: String) -> Result<bool, String> {
