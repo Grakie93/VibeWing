@@ -25,6 +25,7 @@ export interface Settings {
   check_updates: boolean
   default_chat_model: string
   providers: Provider[]
+  onboarding_complete?: boolean
 }
 
 export interface Provider { id:string; name:string; base_url:string; model:string; models?:string[]; model_names?:Record<string,string> }

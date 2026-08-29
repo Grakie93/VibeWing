@@ -95,6 +95,7 @@ pub struct Settings {
     pub check_updates: bool,
     pub default_chat_model: String,
     pub providers: Vec<Provider>,
+    pub onboarding_complete: bool,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -126,6 +127,7 @@ impl Default for Settings {
             check_updates: true,
             default_chat_model: String::new(),
             providers: Vec::new(),
+            onboarding_complete: false,
         }
     }
 }

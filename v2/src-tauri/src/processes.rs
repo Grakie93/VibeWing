@@ -116,3 +116,10 @@ pub fn stop(project: &mut Project, service: ServiceKind) -> Result<(), String> {
         Err("无法停止服务进程".into())
     }
 }
+
+pub fn stop_all(projects: &mut [Project]) {
+    for project in projects {
+        let _ = stop(project, ServiceKind::Frontend);
+        let _ = stop(project, ServiceKind::Backend);
+    }
+}
