@@ -3,17 +3,33 @@ import { reactive, ref, watch } from 'vue'
 import { desktop } from '../services/desktop'
 import { language } from '../i18n'
 import type { Provider, Settings } from '../types'
-const props=defineProps<{open:boolean;settings:Settings}>();const emit=defineEmits<{close:[];saved:[settings:Settings]}>()
-const cloneSettings = (value: Settings): Settings => JSON.parse(JSON.stringify(value))
-const form=reactive<Settings>(cloneSettings(props.settings));const active=ref('general');const selected=ref('');const key=ref('');const keyConfigured=ref(false)
-function sync(){Object.assign(form,cloneSettings(props.settings));if(!selected.value&&form.providers[0])selected.value=form.providers[0].id}
-watch(()=>props.settings, sync,{deep:true});watch(()=>props.open,open=>{if(open)sync()})
-function current(){return form.providers.find(p=>p.id===selected.value)}
-function add(){const provider:Provider={id:`provider-${Date.now()}`,name:'',base_url:'',model:'',models:[],model_names:{}};form.providers.push(provider);selected.value=provider.id;active.value='models';key.value='';keyConfigured.value=false}
-function addModel(){const p=current();if(!p)return;const id=prompt('模型 ID');if(!id?.trim())return;p.models ||= [];if(!p.models.includes(id.trim()))p.models.push(id.trim());if(!p.model)p.model=id.trim()}
-async function select(id:string){selected.value=id;key.value='';keyConfigured.value=await desktop.providerKeyStatus(id).catch(()=>false)}
-function remove(){if(!current()||!confirm('删除这个模型平台？'))return;form.providers=form.providers.filter(p=>p.id!==selected.value);selected.value=form.providers[0]?.id||''}
-function normalize(p:Provider){const ids=(p.models?.length?p.models:[p.model]).filter(Boolean);p.models=[...new Set(ids)];p.model=p.models[0]||'';p.model_names ||= {}}
-async function save(){for(const p of form.providers)normalize(p);const p=current();if(p&&key.value.trim())await desktop.saveProviderKey(p.id,key.value.trim());const saved=cloneSettings(form);await desktop.saveSettings(saved);language.value=form.language;emit('saved',saved);emit('close')}
+
+const props = defineProps<{ open: boolean; settings: Settings }>()
+const emit = defineEmits<{ close: []; saved: [settings: Settings] }>()
+const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value))
+const form = reactive<Settings>(clone(props.settings))
+const tab = ref<'models' | 'general'>('models')
+const providerId = ref(''); const key = ref(''); const keyConfigured = ref(false)
+const current = () => form.providers.find(p => p.id === providerId.value)
+
+function sync() { Object.assign(form, clone(props.settings)); providerId.value ||= form.providers[0]?.id || '' }
+watch(() => props.open, open => { if (open) sync() })
+function addProvider() { const p: Provider = { id: `provider-${Date.now()}`, name: '', base_url: '', model: '', models: [], model_names: {} }; form.providers.push(p); providerId.value = p.id; tab.value = 'models' }
+async function selectProvider(id: string) { providerId.value = id; key.value = ''; keyConfigured.value = await desktop.providerKeyStatus(id).catch(() => false) }
+function addModel() { const p = current(); const id = prompt('模型 ID'); if (!p || !id?.trim()) return; p.models ||= []; if (!p.models.includes(id.trim())) p.models.push(id.trim()); if (!p.model) p.model = id.trim() }
+function removeModel(id: string) { const p = current(); if (!p) return; p.models = (p.models || []).filter(item => item !== id); if (p.model === id) p.model = p.models[0] || '' }
+function removeProvider() { if (!current() || !confirm('删除这个模型平台？')) return; form.providers = form.providers.filter(p => p.id !== providerId.value); providerId.value = form.providers[0]?.id || '' }
+async function save() { const p = current(); if (p && key.value.trim()) await desktop.saveProviderKey(p.id, key.value.trim()); const saved = clone(form); await desktop.saveSettings(saved); language.value = saved.language; emit('saved', saved); emit('close') }
 </script>
-<template><div v-if="open" class="modal"><form class="dialog settings-dialog" @submit.prevent="save"><header><h2>{{form.language==='en'?'Settings':'设置'}}</h2><button type="button" @click="emit('close')">×</button></header><div class="settings-layout"><aside><button type="button" :class="{active:active==='models'}" @click="active='models'">{{form.language==='en'?'Model services':'模型服务'}}</button><button type="button" :class="{active:active==='general'}" @click="active='general'">{{form.language==='en'?'General':'常规设置'}}</button></aside><section v-if="active==='general'"><label>{{form.language==='en'?'Language':'软件语言'}}<select v-model="form.language"><option value="zh-CN">简体中文</option><option value="en">English</option></select></label><label>{{form.language==='en'?'Theme':'主题'}}<select v-model="form.theme.preset"><option value="winglight">蝶翼浅色</option><option value="wingdark">蝶翼深色</option></select></label><label><input v-model="form.check_updates" type="checkbox"/> {{form.language==='en'?'Check for updates automatically':'自动检查更新'}}</label></section><section v-else><div class="provider-tabs"><button v-for="p in form.providers" :key="p.id" type="button" :class="{active:selected===p.id}" @click="select(p.id)">{{p.name||'未命名平台'}}</button><button type="button" @click="add">＋ {{form.language==='en'?'Add provider':'添加平台'}}</button></div><template v-if="current()"><label>平台名称<input v-model="current()!.name" placeholder="NVIDIA"/></label><label>API 地址<input v-model="current()!.base_url" placeholder="https://integrate.api.nvidia.com/v1"/></label><label>模型 ID<input v-model="current()!.model" placeholder="deepseek-ai/deepseek-v4-flash"/></label><div v-if="current()!.models?.length" class="model-list"><button v-for="id in current()!.models" :key="id" type="button" class="model-chip" @click="current()!.model=id">{{id}}</button></div><button type="button" @click="addModel">＋ 添加模型</button><label>模型名称<input :value="current()!.model_names?.[current()!.model]||''" @input="current()!.model_names![current()!.model]=($event.target as HTMLInputElement).value" placeholder="可自定义显示名称"/></label><label>API Key <span v-if="keyConfigured" class="key-ok">已配置</span><input v-model="key" type="password" :placeholder="keyConfigured?'留空则保持原 Key':'输入 API Key'"/></label><button type="button" class="danger" @click="remove">删除平台</button></template><p v-else class="hint">先添加一个模型平台。</p></section></div><footer><span/><button type="button" @click="emit('close')">取消</button><button class="primary">保存设置</button></footer></form></div></template>
+
+<template>
+  <div v-if="open" class="modal"><form class="dialog settings-dialog" @submit.prevent="save">
+    <header><h2>{{ form.language === 'en' ? 'Settings' : '设置' }}</h2><button type="button" @click="emit('close')">×</button></header>
+    <div class="settings-layout"><aside><button type="button" :class="{ active: tab === 'models' }" @click="tab = 'models'">模型服务</button><button type="button" :class="{ active: tab === 'general' }" @click="tab = 'general'">常规设置</button></aside>
+      <section v-if="tab === 'general'"><label>软件语言<select v-model="form.language"><option value="zh-CN">简体中文</option><option value="en">English</option></select></label><label>主题<select v-model="form.theme.preset"><option value="winglight">蝶翼浅色</option><option value="wingdark">蝶翼深色</option></select></label><label class="check-row"><input v-model="form.check_updates" type="checkbox" /> 自动检查更新</label></section>
+      <section v-else><div class="provider-tabs"><button v-for="p in form.providers" :key="p.id" type="button" :class="{ active: providerId === p.id }" @click="selectProvider(p.id)">{{ p.name || '未命名平台' }}</button><button type="button" @click="addProvider">＋ 添加平台</button></div>
+        <template v-if="current()"><label>平台名称<input v-model="current()!.name" /></label><label>API 地址<input v-model="current()!.base_url" /></label><label>当前模型 ID<input v-model="current()!.model" /></label><div class="model-list"><span v-for="id in (current()!.models || [])" :key="id" class="model-chip"><button type="button" @click="current()!.model = id">{{ id }}</button><button type="button" class="chip-remove" @click="removeModel(id)">×</button></span><button type="button" @click="addModel">＋ 添加模型</button></div><label>模型名称<input :value="current()!.model_names?.[current()!.model] || ''" @input="current()!.model_names![current()!.model] = ($event.target as HTMLInputElement).value" /></label><label>API Key <span v-if="keyConfigured" class="key-ok">已配置</span><input v-model="key" type="password" :placeholder="keyConfigured ? '留空保持原 Key' : '输入 API Key'" /></label><button type="button" class="danger" @click="removeProvider">删除平台</button></template><p v-else class="hint">请先添加模型平台。</p>
+      </section>
+    </div><footer><span></span><button type="button" @click="emit('close')">取消</button><button class="primary" type="submit">保存设置</button></footer>
+  </form></div>
+</template>

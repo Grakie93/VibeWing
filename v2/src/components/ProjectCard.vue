@@ -9,7 +9,10 @@ const emit = defineEmits<{ edit: [project: ProjectView]; changed: []; git: [proj
 
 <template>
   <article class="project-card">
-    <header><div><h2>{{ project.name }}</h2><p>{{ project.path }}</p></div><div class="card-actions"><button @click="emit('edit', project)">{{ text.edit }}</button><button @click="emit('git', project)">Git</button></div></header>
+    <header class="project-header">
+      <div><h2>{{ project.name }}</h2><p>{{ project.path }}</p></div>
+      <div class="card-actions"><button @click="emit('edit', project)">{{ text.edit }}</button><button @click="emit('git', project)">Git</button></div>
+    </header>
     <ServicePanel :project="project" service="frontend" @changed="emit('changed')" />
     <ServicePanel :project="project" service="backend" @changed="emit('changed')" />
   </article>
