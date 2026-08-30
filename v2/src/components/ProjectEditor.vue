@@ -5,6 +5,7 @@ import { emptyProject } from '../types'
 
 const props = defineProps<{ open: boolean; project?: Project | null }>()
 const emit = defineEmits<{ close: []; save: [project: Project]; remove: [id: string] }>()
+const saving = reactive({ value: false })
 const form = reactive<Project>(emptyProject())
 const copy = (value: Project): Project => JSON.parse(JSON.stringify(value))
 
@@ -14,10 +15,13 @@ watch(() => props.open, (open) => {
 }, { immediate: true })
 
 function submit() {
+  if (saving.value) return
+  saving.value = true
   const project = copy(form)
   if (!project.frontend_path.trim()) project.frontend_path = project.path
   if (!project.backend_path.trim()) project.backend_path = project.path
   emit('save', project)
+  window.setTimeout(() => { saving.value = false }, 800)
 }
 </script>
 
@@ -39,7 +43,7 @@ function submit() {
         <button v-if="form.id" type="button" class="danger" @click="emit('remove', form.id)">移除项目</button>
         <span />
         <button type="button" @click="emit('close')">取消</button>
-        <button class="primary" type="submit">保存项目</button>
+        <button class="primary" type="submit" :disabled="saving.value">{{ saving.value ? '保存中…' : '保存项目' }}</button>
       </footer>
     </form>
   </div>

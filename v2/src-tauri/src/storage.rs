@@ -33,10 +33,10 @@ fn migrate_legacy_files(data_dir: &Path) -> Result<(), String> {
     let Some(base) = dirs::data_dir() else {
         return Ok(());
     };
-    let legacy = base.join("VibeWing");
-    if legacy == data_dir || data_dir.join("projects.json").exists() || !legacy.is_dir() {
-        return Ok(());
-    }
+    let candidates = [base.join("VibeWing"), base.join("vibewing"), base.join("VibeWing Desktop")];
+    let Some(legacy) = candidates.iter().find(|path| path.is_dir() && *path != data_dir) else { return Ok(()); };
+    // Only migrate files that are absent in the Tauri data directory. This keeps
+    // an existing Tauri profile authoritative while allowing Electron users to upgrade.
     for name in [
         "projects.json",
         "settings.json",
