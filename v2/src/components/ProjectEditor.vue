@@ -7,8 +7,9 @@ const props = defineProps<{ open: boolean; project?: Project | null }>()
 const emit = defineEmits<{ close: []; save: [project: Project]; remove: [id: string] }>()
 const form = reactive<Project>(emptyProject())
 const clone = (value: Project): Project => JSON.parse(JSON.stringify(value))
+function normalize(){ if (!form.frontend_path.trim()) form.frontend_path=form.path; if (!form.backend_path.trim()) form.backend_path=form.path }
 watch(() => [props.open, props.project], () => Object.assign(form, props.project ? clone(props.project) : emptyProject()), { immediate: true })
-const submit = () => emit('save', clone(form) as Project)
+const submit = () => { normalize(); emit('save', clone(form) as Project) }
 </script>
 
 <template>
