@@ -43,7 +43,7 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
 <template>
   <main>
     <header class="topbar">
-      <div class="brand"><img :src="logo" alt="VibeWing" /><div><h1>VibeWing</h1><p>{{ text.subtitle }}</p></div></div>
+      <div class="brand"><img :src="logo" alt="VibeWing" /><div><h1>VibeWing <small class="dev-badge">Tauri Dev</small></h1><p>{{ text.subtitle }}</p></div></div>
       <nav><button @click="chatOpen=true">💬 {{ text.ai }}</button><button @click="settingsOpen=true">⚙ {{ text.settings }}</button><button class="primary" @click="openEditor()">＋ {{ text.import }}</button></nav>
     </header>
     <section v-if="projects.length" class="project-grid"><ProjectCard v-for="project in projects" :key="project.id" :project="project" @edit="openEditor" @changed="refresh" @git="gitProject=$event;gitOpen=true" /></section>
