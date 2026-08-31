@@ -29,7 +29,7 @@ async function toggleLog() {
   <section class="service-panel">
     <div class="service-title">
       <strong><i :class="['status-dot', { running: value('running') }]" />{{ text[service] }}</strong>
-      <span>{{ value('port') ? `Port ${value('port')}` : '—' }}</span>
+      <a v-if="value('port')" class="port-link" :href="`http://localhost:${value('port')}`" target="_blank" rel="noreferrer">Port {{ value('port') }} ↗</a><span v-else>—</span>
     </div>
     <p>{{ value('path') || project.path }}</p>
     <code>{{ value('cmd') || '—' }}</code>

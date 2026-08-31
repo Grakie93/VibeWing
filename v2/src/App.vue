@@ -50,7 +50,7 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
       <div class="brand"><img :src="logo" alt="VibeWing" /><div><h1>VibeWing <small class="dev-badge">Tauri Dev</small></h1><p>{{ text.subtitle }}</p></div></div>
       <nav><button @click="chatOpen=true">💬 {{ text.ai }}</button><button @click="settingsOpen=true">⚙ {{ text.settings }}</button><button class="primary" @click="openEditor()">＋ {{ text.import }}</button></nav>
     </header>
-    <section v-if="projects.length" class="project-grid"><ProjectCard v-for="project in projects" :key="project.id" :project="project" @edit="openEditor" @changed="refresh" @git="gitProject=$event;gitOpen=true" /></section>
+    <section v-if="projects.length" class="project-grid"><ProjectCard v-for="project in projects" :key="project.id" :project="project" @edit="openEditor" @changed="refresh" @git="gitProject=$event;gitOpen=true" @remove="remove" /></section>
     <div v-else class="empty">{{ text.empty }}</div>
     <ProjectEditor :open="editorOpen" :project="editing" @close="editorOpen = false" @save="save" @remove="remove" />
     <div v-if="chatOpen" class="modal"><section class="dialog chat-dialog"><header><h2>{{ text.ai }}</h2><button @click="chatOpen=false">×</button></header><ChatPanel :settings="settings" /></section></div>
