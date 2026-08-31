@@ -31,7 +31,11 @@ async function save(project: Project) {
     alert(`保存项目失败：${String(error)}`)
   }
 }
-async function remove(id: string) { if (confirm('移除项目配置？不会删除项目文件。')) { await desktop.deleteProject(id); editorOpen.value = false; await refresh() } }
+async function remove(id: string) {
+  if (!confirm('移除项目配置？不会删除项目文件。')) return
+  try { await desktop.deleteProject(id); editorOpen.value = false; editing.value = null; await refresh() }
+  catch (error) { alert(`移除项目失败：${String(error)}`) }
+}
 
 onMounted(async () => {
   settings.value = await desktop.getSettings(); language.value = settings.value.language
