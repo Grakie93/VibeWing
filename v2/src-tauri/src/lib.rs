@@ -44,18 +44,6 @@ pub fn run() {
             commands::save_provider_key,
             commands::ask_ai,
         ])
-        .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                if let Some(state) = window.app_handle().try_state::<storage::AppState>() {
-                    if let Ok(mut projects) = state.projects.lock() {
-                        processes::stop_all(&mut projects);
-                        let _ = state.save_projects(&projects);
-                    }
-                }
-                api.prevent_close();
-                window.app_handle().exit(0);
-            }
-        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
