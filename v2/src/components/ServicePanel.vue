@@ -10,6 +10,7 @@ const busy = ref('')
 const log = ref('')
 const logOpen = ref(false)
 const selectedLog = ref('')
+const selectionMenuVisible = ref(false)
 
 const value = (suffix: string) => props.project[`${props.service}_${suffix}` as keyof ProjectView]
 
@@ -25,17 +26,21 @@ async function toggleLog() {
   if (logOpen.value) log.value = await desktop.readLog(props.project.id, props.service)
 }
 function onLogSelection() {
-  const selection = window.getSelection()?.toString().trim() || ''
-  selectedLog.value = selection.slice(0, 5000)
+  window.setTimeout(() => {
+    const selection = window.getSelection()?.toString().trim() || ''
+    selectedLog.value = selection.slice(0, 5000)
+    selectionMenuVisible.value = Boolean(selectedLog.value)
+  }, 0)
 }
-function askSelected() { if (selectedLog.value) emit('askAi', selectedLog.value); selectedLog.value = '' }
+function askSelected() { if (selectedLog.value) emit('askAi', selectedLog.value); selectionMenuVisible.value = false }
+function openPort() { const port = value('port'); if (port) desktop.openUrl(`http://localhost:${port}`).catch(error => alert(String(error))) }
 </script>
 
 <template>
   <section class="service-panel">
     <div class="service-title">
       <strong><i :class="['status-dot', { running: value('running') }]" />{{ text[service] }}</strong>
-      <a v-if="value('port')" class="port-link" :href="`http://localhost:${value('port')}`" target="_blank" rel="noreferrer">Port {{ value('port') }} ↗</a><span v-else>—</span>
+      <button v-if="value('port')" type="button" class="port-link" @click="openPort">Port {{ value('port') }} ↗</button><span v-else>—</span>
     </div>
     <p>{{ value('path') || project.path }}</p>
     <code>{{ value('cmd') || '—' }}</code>
@@ -45,6 +50,6 @@ function askSelected() { if (selectedLog.value) emit('askAi', selectedLog.value)
       <button :disabled="!!busy" @click="action('stop')">{{ text.stop }}</button>
       <button @click="toggleLog">{{ text.logs }}</button>
     </div>
-    <div v-if="logOpen" class="log-view"><pre @mouseup="onLogSelection">{{ log || '暂无日志' }}</pre><button v-if="selectedLog" type="button" class="ask-log-button" @click="askSelected">问问 AI</button></div>
+    <div v-if="logOpen" class="log-view"><pre @mouseup="onLogSelection">{{ log || '暂无日志' }}</pre><button v-if="selectionMenuVisible" type="button" class="ask-log-button" @mousedown.prevent="askSelected">问问 AI</button></div>
   </section>
 </template>

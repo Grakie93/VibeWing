@@ -2,6 +2,7 @@ use std::{
     fs,
     time::{SystemTime, UNIX_EPOCH},
 };
+use std::process::Command;
 
 use tauri::State;
 
@@ -76,8 +77,27 @@ pub fn save_project(
 #[tauri::command]
 pub fn delete_project(state: State<'_, AppState>, id: String) -> Result<(), String> {
     let mut projects = state.projects.lock().map_err(|error| error.to_string())?;
+    let before = projects.len();
     projects.retain(|project| project.id != id);
+    if projects.len() == before {
+        return Err("项目不存在或已经被移除".into());
+    }
     state.save_projects(&projects)
+}
+
+#[tauri::command]
+pub fn open_url(url: String) -> Result<(), String> {
+    let parsed = url::Url::parse(&url).map_err(|e| e.to_string())?;
+    if parsed.scheme() != "http" && parsed.scheme() != "https" {
+        return Err("仅支持打开 HTTP/HTTPS 地址".into());
+    }
+    #[cfg(target_os = "macos")]
+    let status = Command::new("open").arg(&url).status();
+    #[cfg(target_os = "windows")]
+    let status = Command::new("cmd").args(["/C", "start", "", &url]).status();
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let status = Command::new("xdg-open").arg(&url).status();
+    status.map_err(|e| e.to_string()).and_then(|s| if s.success() { Ok(()) } else { Err(format!("无法打开地址：{url}")) })
 }
 
 #[tauri::command]

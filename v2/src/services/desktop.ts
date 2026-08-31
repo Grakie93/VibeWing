@@ -5,6 +5,7 @@ export const desktop = {
   listProjects: () => invoke<ProjectView[]>('list_projects'),
   saveProject: (project: Project) => invoke<ProjectView>('save_project', { project }),
   deleteProject: (id: string) => invoke<void>('delete_project', { id }),
+  openUrl: (url: string) => invoke<void>('open_url', { url }),
   serviceAction: (id: string, service: ServiceKind, action: 'start' | 'stop' | 'restart') =>
     invoke<ProjectView>('service_action', { id, service, action }),
   readLog: (id: string, service: ServiceKind) => invoke<string>('read_log', { id, service }),

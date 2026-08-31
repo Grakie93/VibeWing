@@ -26,6 +26,7 @@ pub fn run() {
             commands::list_projects,
             commands::save_project,
             commands::delete_project,
+            commands::open_url,
             commands::service_action,
             commands::read_log,
             commands::get_settings,

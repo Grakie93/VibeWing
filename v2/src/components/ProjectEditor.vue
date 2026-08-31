@@ -40,7 +40,7 @@ function submit() {
         <label class="wide">后端启动命令<input v-model="form.backend_cmd" placeholder="npm run server" /></label>
       </div>
       <footer>
-        <button v-if="form.id" type="button" class="danger" @click="emit('remove', form.id)">移除项目</button>
+        <button v-if="form.id" type="button" class="danger" @click.stop.prevent="emit('remove', form.id)">移除项目</button>
         <span />
         <button type="button" @click="emit('close')">取消</button>
         <button class="primary" type="submit" :disabled="saving.value">{{ saving.value ? '保存中…' : '保存项目' }}</button>
