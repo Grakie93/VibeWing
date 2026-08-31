@@ -16,6 +16,7 @@ const editing = ref<ProjectView | null>(null)
 const settings = ref<any>({ language:'zh-CN', theme:{accent:'#20bdb7',bg:'#f2fbfb',card:'#fff',preset:'winglight'}, check_updates:true, default_chat_model:'', providers:[] })
 const chatOpen = ref(false); const settingsOpen = ref(false)
 const gitOpen = ref(false); const gitProject = ref<ProjectView | null>(null)
+const pendingLog = ref('')
 let refreshTimer: number | undefined
 
 async function refresh() { if (!document.hidden) projects.value = await desktop.listProjects() }
@@ -36,6 +37,7 @@ async function remove(id: string) {
   try { await desktop.deleteProject(id); editorOpen.value = false; editing.value = null; await refresh() }
   catch (error) { alert(`移除项目失败：${String(error)}`) }
 }
+function askSelectedLog(log: string) { pendingLog.value = log; chatOpen.value = true }
 
 onMounted(async () => {
   settings.value = await desktop.getSettings(); language.value = settings.value.language
@@ -50,11 +52,11 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
       <div class="brand"><img :src="logo" alt="VibeWing" /><div><h1>VibeWing <small class="dev-badge">Tauri Dev</small></h1><p>{{ text.subtitle }}</p></div></div>
       <nav><button @click="chatOpen=true">💬 {{ text.ai }}</button><button @click="settingsOpen=true">⚙ {{ text.settings }}</button><button class="primary" @click="openEditor()">＋ {{ text.import }}</button></nav>
     </header>
-    <section v-if="projects.length" class="project-grid"><ProjectCard v-for="project in projects" :key="project.id" :project="project" @edit="openEditor" @changed="refresh" @git="gitProject=$event;gitOpen=true" @remove="remove" /></section>
+    <section v-if="projects.length" class="project-grid"><ProjectCard v-for="project in projects" :key="project.id" :project="project" @edit="openEditor" @changed="refresh" @git="gitProject=$event;gitOpen=true" @ask-ai="askSelectedLog" /></section>
     <div v-else class="empty">{{ text.empty }}</div>
     <ProjectEditor :open="editorOpen" :project="editing" @close="editorOpen = false" @save="save" @remove="remove" />
-    <div v-if="chatOpen" class="modal"><section class="dialog chat-dialog"><header><h2>{{ text.ai }}</h2><button @click="chatOpen=false">×</button></header><ChatPanel :settings="settings" /></section></div>
+    <div v-if="chatOpen" class="modal"><section class="dialog chat-dialog"><header><h2>{{ text.ai }}</h2><button @click="chatOpen=false">×</button></header><ChatPanel :settings="settings" :projects="projects" :pending-log="pendingLog" /></section></div>
     <SettingsPanel :open="settingsOpen" :settings="settings" @close="settingsOpen=false" @saved="settings=$event;language=$event.language" />
-    <div v-if="gitOpen && gitProject" class="modal"><section class="dialog git-dialog"><header><h2>Git · {{gitProject.name}}</h2><button @click="gitOpen=false">×</button></header><GitPanel :project="gitProject" /></section></div>
+    <div v-if="gitOpen && gitProject" class="modal"><section class="dialog git-dialog"><header><h2>Git · {{gitProject.name}}</h2><button @click="gitOpen=false">×</button></header><GitPanel :project="gitProject" :settings="settings" /></section></div>
   </main>
 </template>

@@ -219,15 +219,22 @@ pub fn git_pull(state: State<'_, AppState>, id: String, scope: String) -> Result
 }
 
 #[tauri::command]
-pub fn provider_key_status(provider_id: String) -> Result<bool, String> {
-    Ok(credentials::get(&provider_id)
-        .map(|value| !value.is_empty())
-        .unwrap_or(false))
+pub fn provider_key_status(state: State<'_, AppState>, provider_id: String) -> Result<bool, String> {
+    // Do not read the OS keychain while rendering Settings: macOS can show an
+    // access prompt for every read. The marker is persisted with the provider;
+    // the keychain is accessed only when saving a key or sending a request.
+    let settings = state.settings.lock().map_err(|e| e.to_string())?;
+    Ok(settings.providers.iter().find(|p| p.id == provider_id).map(|p| p.key_configured).unwrap_or(false))
 }
 
 #[tauri::command]
-pub fn save_provider_key(provider_id: String, key: String) -> Result<(), String> {
-    credentials::set(&provider_id, &key)
+pub fn save_provider_key(state: State<'_, AppState>, provider_id: String, key: String) -> Result<(), String> {
+    credentials::set(&provider_id, &key)?;
+    let mut settings = state.settings.lock().map_err(|e| e.to_string())?;
+    if let Some(provider) = settings.providers.iter_mut().find(|p| p.id == provider_id) {
+        provider.key_configured = !key.is_empty();
+    }
+    state.save_settings(&settings)
 }
 
 #[tauri::command]

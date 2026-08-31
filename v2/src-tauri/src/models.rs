@@ -107,6 +107,8 @@ pub struct Provider {
     pub model: String,
     pub models: Vec<String>,
     pub model_names: std::collections::HashMap<String, String>,
+    /// Persisted marker used by the settings UI. The secret itself stays in the OS keychain.
+    pub key_configured: bool,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]

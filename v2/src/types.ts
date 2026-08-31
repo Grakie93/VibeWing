@@ -28,7 +28,7 @@ export interface Settings {
   onboarding_complete?: boolean
 }
 
-export interface Provider { id:string; name:string; base_url:string; model:string; models?:string[]; model_names?:Record<string,string> }
+export interface Provider { id:string; name:string; base_url:string; model:string; models?:string[]; model_names?:Record<string,string>; key_configured?: boolean }
 export interface ChatMessage { role:'user'|'assistant'; content:string }
 export interface Chat { id:string; title:string; model:string; messages:ChatMessage[]; updated_at:number }
 

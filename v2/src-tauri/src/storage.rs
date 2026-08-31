@@ -26,6 +26,13 @@ fn write_json<T: serde::Serialize>(path: &Path, value: &T) -> Result<(), String>
     let temporary = path.with_extension("tmp");
     let content = serde_json::to_string_pretty(value).map_err(|error| error.to_string())?;
     fs::write(&temporary, content).map_err(|error| error.to_string())?;
+    // `rename` replaces an existing file on Unix, but fails on Windows.
+    // Remove the old snapshot first so Save Project/Settings behaves the same
+    // on both platforms.
+    #[cfg(windows)]
+    if path.exists() {
+        fs::remove_file(path).map_err(|error| error.to_string())?;
+    }
     fs::rename(temporary, path).map_err(|error| error.to_string())
 }
 

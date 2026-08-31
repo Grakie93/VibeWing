@@ -5,10 +5,11 @@ import { desktop } from '../services/desktop'
 import type { ProjectView, ServiceKind } from '../types'
 
 const props = defineProps<{ project: ProjectView; service: ServiceKind }>()
-const emit = defineEmits<{ changed: [] }>()
+const emit = defineEmits<{ changed: []; askAi: [log: string] }>()
 const busy = ref('')
 const log = ref('')
 const logOpen = ref(false)
+const selectedLog = ref('')
 
 const value = (suffix: string) => props.project[`${props.service}_${suffix}` as keyof ProjectView]
 
@@ -23,6 +24,11 @@ async function toggleLog() {
   logOpen.value = !logOpen.value
   if (logOpen.value) log.value = await desktop.readLog(props.project.id, props.service)
 }
+function onLogSelection() {
+  const selection = window.getSelection()?.toString().trim() || ''
+  selectedLog.value = selection.slice(0, 5000)
+}
+function askSelected() { if (selectedLog.value) emit('askAi', selectedLog.value); selectedLog.value = '' }
 </script>
 
 <template>
@@ -39,6 +45,6 @@ async function toggleLog() {
       <button :disabled="!!busy" @click="action('stop')">{{ text.stop }}</button>
       <button @click="toggleLog">{{ text.logs }}</button>
     </div>
-    <pre v-if="logOpen">{{ log || '暂无日志' }}</pre>
+    <div v-if="logOpen" class="log-view"><pre @mouseup="onLogSelection">{{ log || '暂无日志' }}</pre><button v-if="selectedLog" type="button" class="ask-log-button" @click="askSelected">问问 AI</button></div>
   </section>
 </template>
