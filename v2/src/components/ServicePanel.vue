@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onBeforeUnmount, ref } from 'vue'
 import { text } from '../i18n'
 import { desktop } from '../services/desktop'
 import type { ProjectView, ServiceKind } from '../types'
@@ -32,8 +32,16 @@ function onLogSelection() {
     selectionMenuVisible.value = Boolean(selectedLog.value)
   }, 0)
 }
+function clearSelectionIfOutside(event: MouseEvent) {
+  const target = event.target as Node
+  if (!(target instanceof Element) || !target.closest('.log-view')) {
+    selectionMenuVisible.value = false
+  }
+}
 function askSelected() { if (selectedLog.value) emit('askAi', selectedLog.value); selectionMenuVisible.value = false }
 function openPort() { const port = value('port'); if (port) desktop.openUrl(`http://localhost:${port}`).catch(error => alert(String(error))) }
+window.addEventListener('mousedown', clearSelectionIfOutside)
+onBeforeUnmount(() => window.removeEventListener('mousedown', clearSelectionIfOutside))
 </script>
 
 <template>

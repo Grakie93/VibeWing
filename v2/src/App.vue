@@ -32,6 +32,7 @@ function applyTheme(theme: any) {
   root.style.setProperty('--app-text', selected.text)
   root.style.setProperty('--muted', selected.muted)
   root.dataset.theme = theme?.preset || 'winglight'
+  root.classList.toggle('theme-dark', (theme?.preset || '') === 'wingdark' || /^#(?:0{2}|1[0-9]|2[0-9])/i.test(theme?.bg || ''))
 }
 
 async function refresh() { if (!document.hidden) projects.value = await desktop.listProjects() }
