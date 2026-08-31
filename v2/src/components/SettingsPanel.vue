@@ -59,11 +59,18 @@ function removeModel(id: string) {
   provider.models = (provider.models || []).filter(model => model !== id)
   if (provider.model === id) provider.model = provider.models[0] || ''
 }
-function removeProvider() {
+async function removeProvider() {
   if (!current.value || !window.confirm('删除这个模型平台？')) return
-  form.providers = form.providers.filter(provider => provider.id !== providerId.value)
+  const removedId = providerId.value
+  form.providers = form.providers.filter(provider => provider.id !== removedId)
   providerId.value = form.providers[0]?.id || ''
   editingProvider.value = false
+  try {
+    await desktop.saveSettings(clone(form))
+    emit('saved', clone(form))
+  } catch (error) {
+    window.alert(`删除平台失败：${String(error)}`)
+  }
 }
 async function save() {
   const provider = current.value
@@ -96,10 +103,7 @@ async function save() {
         <section v-else>
           <div class="provider-tabs">
             <span v-for="provider in form.providers" :key="provider.id" class="provider-chip">
-              <button type="button" :class="{ active: providerId === provider.id }" @click="selectProvider(provider.id)">
-                {{ provider.name || '未命名平台' }}
-                <span class="chip-remove" title="删除平台" @click.stop="selectProvider(provider.id); removeProvider()">×</span>
-              </button>
+              <button type="button" class="provider-main" :class="{ active: providerId === provider.id }" @click="selectProvider(provider.id)">{{ provider.name || '未命名平台' }}</button><button type="button" class="chip-remove" title="删除平台" @click="selectProvider(provider.id); removeProvider()">×</button>
             </span>
             <button type="button" @click="addProvider">＋ 添加平台</button>
           </div>

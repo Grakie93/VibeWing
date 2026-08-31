@@ -25,6 +25,7 @@ function submit() {
 }
 function remove() {
   if (!form.id || saving.value) return
+  if (!window.confirm('移除项目配置？不会删除项目文件。')) return
   emit('remove', form.id)
 }
 </script>
