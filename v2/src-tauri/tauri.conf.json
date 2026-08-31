@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "VibeWing",
+  "productName": "VibeWing Tauri Dev",
   "version": "2.0.0",
-  "identifier": "app.vibewing.desktop",
+  "identifier": "app.vibewing.tauri.dev",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://127.0.0.1:1420",
