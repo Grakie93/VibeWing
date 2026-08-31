@@ -19,6 +19,21 @@ const gitOpen = ref(false); const gitProject = ref<ProjectView | null>(null)
 const pendingLog = ref('')
 let refreshTimer: number | undefined
 
+function applyTheme(theme: any) {
+  const presets: Record<string, { accent: string; bg: string; card: string; text: string; muted: string }> = {
+    winglight: { accent: '#20bdb7', bg: '#f2fbfb', card: '#ffffff', text: '#173044', muted: '#65808d' },
+    wingdark: { accent: '#77d9d2', bg: '#10232e', card: '#183743', text: '#e7fbfa', muted: '#a8c7cb' },
+  }
+  const selected = presets[theme?.preset] || presets.winglight
+  const root = document.documentElement
+  root.style.setProperty('--accent', theme?.accent || selected.accent)
+  root.style.setProperty('--app-bg', theme?.bg || selected.bg)
+  root.style.setProperty('--card-bg', theme?.card || selected.card)
+  root.style.setProperty('--app-text', selected.text)
+  root.style.setProperty('--muted', selected.muted)
+  root.dataset.theme = theme?.preset || 'winglight'
+}
+
 async function refresh() { if (!document.hidden) projects.value = await desktop.listProjects() }
 function openEditor(project: ProjectView | null = null) { editing.value = project; editorOpen.value = true }
 async function save(project: Project) {
@@ -40,7 +55,7 @@ async function remove(id: string) {
 function askSelectedLog(log: string) { pendingLog.value = log; chatOpen.value = true }
 
 onMounted(async () => {
-  settings.value = await desktop.getSettings(); language.value = settings.value.language
+  settings.value = await desktop.getSettings(); language.value = settings.value.language; applyTheme(settings.value.theme)
   await refresh(); refreshTimer = window.setInterval(refresh, 10_000)
 })
 onBeforeUnmount(() => clearInterval(refreshTimer))
@@ -56,7 +71,7 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
     <div v-else class="empty">{{ text.empty }}</div>
     <ProjectEditor :open="editorOpen" :project="editing" @close="editorOpen = false" @save="save" @remove="remove" />
     <div v-if="chatOpen" class="modal"><section class="dialog chat-dialog"><header><h2>{{ text.ai }}</h2><button @click="chatOpen=false">×</button></header><ChatPanel :settings="settings" :projects="projects" :pending-log="pendingLog" /></section></div>
-    <SettingsPanel :open="settingsOpen" :settings="settings" @close="settingsOpen=false" @saved="settings=$event;language=$event.language" />
+    <SettingsPanel :open="settingsOpen" :settings="settings" @close="settingsOpen=false" @saved="settings=$event;language=$event.language;applyTheme($event.theme)" />
     <div v-if="gitOpen && gitProject" class="modal"><section class="dialog git-dialog"><header><h2>Git · {{gitProject.name}}</h2><button @click="gitOpen=false">×</button></header><GitPanel :project="gitProject" :settings="settings" /></section></div>
   </main>
 </template>
