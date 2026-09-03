@@ -8,6 +8,10 @@ export interface Project {
   backend_path: string
   frontend_cmd: string
   backend_cmd: string
+  frontend_build: string
+  frontend_test_build: string
+  backend_build: string
+  backend_test_build: string
   frontend_port: string
   backend_port: string
   frontend_pid?: number | null
@@ -26,14 +30,15 @@ export interface Settings {
   default_chat_model: string
   providers: Provider[]
   onboarding_complete?: boolean
+  memory?: string
 }
 
 export interface Provider { id:string; name:string; base_url:string; model:string; models?:string[]; model_names?:Record<string,string>; key_configured?: boolean }
-export interface ChatMessage { role:'user'|'assistant'; content:string }
+export interface ChatMessage { role:'user'|'assistant'; content:string; elapsed_ms?: number; attachment?: string }
 export interface Chat { id:string; title:string; model:string; messages:ChatMessage[]; updated_at:number }
 
 export const emptyProject = (): Project => ({
   id: '', name: '', path: '', frontend_path: '', backend_path: '',
-  frontend_cmd: '', backend_cmd: '', frontend_port: '', backend_port: '',
+  frontend_cmd: '', backend_cmd: '', frontend_build: '', frontend_test_build: '', backend_build: '', backend_test_build: '', frontend_port: '', backend_port: '',
   frontend_pid: null, backend_pid: null,
 })

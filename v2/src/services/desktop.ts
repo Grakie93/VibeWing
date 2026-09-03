@@ -8,7 +8,10 @@ export const desktop = {
   openUrl: (url: string) => invoke<void>('open_url', { url }),
   serviceAction: (id: string, service: ServiceKind, action: 'start' | 'stop' | 'restart') =>
     invoke<ProjectView>('service_action', { id, service, action }),
+  buildProject: (id: string, service: ServiceKind, test: boolean) =>
+    invoke<ProjectView>('build_project', { id, service, test }),
   readLog: (id: string, service: ServiceKind) => invoke<string>('read_log', { id, service }),
+  clearLog: (id: string, service: ServiceKind) => invoke<void>('clear_log', { id, service }),
   getSettings: () => invoke<Settings>('get_settings'),
   saveSettings: (settings: Settings) => invoke<void>('save_settings', { settings }),
   listChats: () => invoke<Chat[]>('list_chats'),

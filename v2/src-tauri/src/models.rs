@@ -10,6 +10,10 @@ pub struct Project {
     pub backend_path: String,
     pub frontend_cmd: String,
     pub backend_cmd: String,
+    pub frontend_build: String,
+    pub frontend_test_build: String,
+    pub backend_build: String,
+    pub backend_test_build: String,
     pub frontend_port: String,
     pub backend_port: String,
     pub frontend_pid: Option<u32>,
@@ -46,10 +50,36 @@ impl ServiceKind {
         }
     }
 
+    pub fn build_command<'a>(self, project: &'a Project, test: bool) -> &'a str {
+        match self {
+            Self::Frontend => {
+                if test {
+                    &project.frontend_test_build
+                } else {
+                    &project.frontend_build
+                }
+            }
+            Self::Backend => {
+                if test {
+                    &project.backend_test_build
+                } else {
+                    &project.backend_build
+                }
+            }
+        }
+    }
+
     pub fn directory<'a>(self, project: &'a Project) -> &'a str {
         match self {
             Self::Frontend => &project.frontend_path,
             Self::Backend => &project.backend_path,
+        }
+    }
+
+    pub fn port<'a>(self, project: &'a Project) -> &'a str {
+        match self {
+            Self::Frontend => &project.frontend_port,
+            Self::Backend => &project.backend_port,
         }
     }
 
@@ -96,6 +126,7 @@ pub struct Settings {
     pub default_chat_model: String,
     pub providers: Vec<Provider>,
     pub onboarding_complete: bool,
+    pub memory: String,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -130,6 +161,7 @@ impl Default for Settings {
             default_chat_model: String::new(),
             providers: Vec::new(),
             onboarding_complete: false,
+            memory: String::new(),
         }
     }
 }

@@ -3,7 +3,10 @@ name: Build VibeWing
 on:
   workflow_dispatch:
   push:
-    tags: ['v*']
+    # Electron releases live on v1.*. Tauri v2 releases use v2.* and must not
+    # trigger this workflow, otherwise both pipelines upload their artifacts
+    # into the same GitHub Release.
+    tags: ['v1.*']
 
 permissions:
   contents: write

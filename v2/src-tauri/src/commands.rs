@@ -133,6 +133,27 @@ pub fn service_action(
 }
 
 #[tauri::command]
+pub fn build_project(
+    state: State<'_, AppState>,
+    id: String,
+    service: ServiceKind,
+    test: bool,
+) -> Result<ProjectView, String> {
+    let mut projects = state.projects.lock().map_err(|error| error.to_string())?;
+    let project = projects
+        .iter_mut()
+        .find(|project| project.id == id)
+        .ok_or("项目不存在")?;
+    processes::build(&state, project, service, test)?;
+    let view = ProjectView {
+        frontend_running: processes::service_running(project, ServiceKind::Frontend),
+        backend_running: processes::service_running(project, ServiceKind::Backend),
+        project: project.clone(),
+    };
+    Ok(view)
+}
+
+#[tauri::command]
 pub fn read_log(
     state: State<'_, AppState>,
     id: String,
@@ -142,6 +163,16 @@ pub fn read_log(
     let bytes = fs::read(path).unwrap_or_default();
     let start = bytes.len().saturating_sub(30_000);
     Ok(String::from_utf8_lossy(&bytes[start..]).into_owned())
+}
+
+#[tauri::command]
+pub fn clear_log(
+    state: State<'_, AppState>,
+    id: String,
+    service: ServiceKind,
+) -> Result<(), String> {
+    let path = state.log_path(&id, service.name());
+    fs::write(path, "").map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -249,7 +280,7 @@ pub fn provider_key_status(state: State<'_, AppState>, provider_id: String) -> R
 
 #[tauri::command]
 pub fn save_provider_key(state: State<'_, AppState>, provider_id: String, key: String) -> Result<(), String> {
-    credentials::set(&provider_id, &key)?;
+    credentials::set(&state.data_dir, &provider_id, &key)?;
     let mut settings = state.settings.lock().map_err(|e| e.to_string())?;
     if let Some(provider) = settings.providers.iter_mut().find(|p| p.id == provider_id) {
         provider.key_configured = !key.is_empty();
@@ -273,10 +304,32 @@ pub async fn ask_ai(
     let base = provider
         .base_url.as_str();
     if base.is_empty() { return Err("模型平台缺少 API 地址".into()); }
-    let key = credentials::get(&request.provider_id)
+    let key = credentials::get(&state.data_dir, &request.provider_id)
         .map_err(|_| "请先配置该平台的 API Key".to_string())?;
     if key.is_empty() {
         return Err("请先配置该平台的 API Key".into());
     }
+    let mut system_prompt = if settings.language == "zh-CN" {
+        "你是VibeWing内置的AI，VibeWing是用于给广大Coding用户做项目管理的应用，开发者是Grakie。默认使用中文回答，用户有特殊语言要求则采用用户要求。先判断用户是在什么项目组进行提问、诊断或讨论。执行目标或环境不完整时，追问最必要的问题，不猜测参数。普通回答要准确、简洁、具体；分析日志时优先结合附加的项目上下文给出明确结论，信息不足时明确说缺少什么，避免罗列大量无关可能性。使用清晰的Markdown标题、列表和代码块。".to_string()
+    } else {
+        "You are the AI built into VibeWing, an app for Coding users to manage their projects, developed by Grakie. Reply in English by default; if the user requests a specific language, follow that request. Do not answer topics unrelated to VibeWing and projects. Determine which project group the user is asking about before answering. If the target or environment is incomplete, ask the most necessary clarifying question instead of guessing. Keep normal answers accurate, concise, and specific. When analyzing logs, prioritize using the attached project context to reach a clear conclusion; explicitly state what information is missing when it is insufficient, and avoid listing many unrelated possibilities. Use clear Markdown headings, lists, and code blocks.".to_string()
+    };
+    if !settings.memory.is_empty() {
+        system_prompt.push_str(if settings.language == "zh-CN" {
+            "\n\n以下是你已经记住的用户长期偏好与约束，必须遵守：\n"
+        } else {
+            "\n\nThe following are long-term user preferences and constraints you must remember and follow:\n"
+        });
+        system_prompt.push_str(&settings.memory);
+    }
+
+    let mut request = request;
+    request.messages.insert(
+        0,
+        ai::ChatMessage {
+            role: "system".into(),
+            content: system_prompt.into(),
+        },
+    );
     ai::complete(request, base, &key).await
 }

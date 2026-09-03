@@ -312,7 +312,7 @@ Copyright © 2026 Grakie93. The MIT license covers the source code, not permissi
 
 ## 中文说明
 
-**让你的项目轻盈起飞。**
+**让您的项目轻盈运行。**
 
 VibeWing 是面向 Vibe Coding 用户的跨平台桌面工作台，把本地项目的前后端启动、重启、停止、端口、日志、构建和 Git 工作流集中到一个可视化界面中，让 Coding Agent 更专注于编写和修复代码。
 
