@@ -13,19 +13,51 @@ use crate::{
     storage::AppState,
 };
 
+/// Win32 entry points for testing whether a pid exists. Declared locally so we
+/// do not have to pull in an extra dependency.
+#[cfg(windows)]
+mod win_process {
+    pub const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
+    pub const ERROR_ACCESS_DENIED: u32 = 5;
+    extern "system" {
+        pub fn OpenProcess(
+            desired_access: u32,
+            inherit_handle: i32,
+            process_id: u32,
+        ) -> *mut core::ffi::c_void;
+        pub fn CloseHandle(object: *mut core::ffi::c_void) -> i32;
+        pub fn GetLastError() -> u32;
+    }
+}
+
 pub fn pid_alive(pid: Option<u32>) -> bool {
     let Some(pid) = pid else { return false };
+    if pid == 0 {
+        return false;
+    }
     #[cfg(unix)]
     unsafe {
         libc::kill(pid as i32, 0) == 0
     }
     #[cfg(windows)]
-    {
-        Command::new("tasklist")
-            .args(["/FI", &format!("PID eq {pid}"), "/NH"])
-            .output()
-            .map(|output| String::from_utf8_lossy(&output.stdout).contains(&pid.to_string()))
-            .unwrap_or(false)
+    unsafe {
+        // Ask the kernel directly instead of spawning `tasklist.exe`. The UI
+        // polls this for every service every few seconds, so each spawn was a
+        // console process: a black window flashing endlessly, plus needless
+        // process churn.
+        let handle = win_process::OpenProcess(
+            win_process::PROCESS_QUERY_LIMITED_INFORMATION,
+            0,
+            pid,
+        );
+        if handle.is_null() {
+            // Access denied still means the process is there (owned by another
+            // user/session). Treating it as dead would make a running service
+            // look stopped, so keep it alive.
+            return win_process::GetLastError() == win_process::ERROR_ACCESS_DENIED;
+        }
+        win_process::CloseHandle(handle);
+        true
     }
 }
 
@@ -82,7 +114,13 @@ fn spawn_with_logging(
     #[cfg(unix)]
     std::os::unix::process::CommandExt::process_group(&mut child_command, 0);
     #[cfg(windows)]
-    std::os::windows::process::CommandExt::creation_flags(&mut child_command, 0x00000200);
+    std::os::windows::process::CommandExt::creation_flags(
+        &mut child_command,
+        // CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW
+        // The latter hides the flashing cmd.exe window every time a service
+        // is started or restarted on Windows.
+        0x00000200 | 0x08000000,
+    );
     let mut child = child_command.spawn().map_err(|error| error.to_string())?;
     forward_logs(&mut child, log_path);
     Ok(child)
@@ -225,6 +263,17 @@ fn wait_for_port_closed(port: &str, timeout: Duration) -> bool {
     }
 }
 
+/// On Windows, helper tools (tasklist, netstat) are console applications.
+/// Without CREATE_NO_WINDOW, every alive/port lookup flashes a black window
+/// on top of the GUI. This wrapper hides them.
+#[cfg(windows)]
+fn silent_command(program: &str) -> Command {
+    use std::os::windows::process::CommandExt;
+    let mut cmd = Command::new(program);
+    cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    cmd
+}
+
 /// Find the pid currently listening on a TCP port.
 /// Used to recover services whose recorded pid was lost (app restart / crash) or
 /// that were started outside VibeWing — otherwise the app would report "running"
@@ -235,7 +284,7 @@ pub fn pid_on_port(port: &str) -> Option<u32> {
     }
     #[cfg(windows)]
     {
-        let output = Command::new("netstat")
+        let output = silent_command("netstat")
             .args(["-ano", "-p", "TCP"])
             .output()
             .ok()?;
