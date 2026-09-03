@@ -6,6 +6,9 @@ export const desktop = {
   saveProject: (project: Project) => invoke<ProjectView>('save_project', { project }),
   deleteProject: (id: string) => invoke<void>('delete_project', { id }),
   openUrl: (url: string) => invoke<void>('open_url', { url }),
+  openPath: (path: string) => invoke<void>('open_path', { path }),
+  rescanProjects: () => invoke<ProjectView[]>('rescan_projects'),
+  getProjectsDir: () => invoke<string>('get_projects_dir'),
   serviceAction: (id: string, service: ServiceKind, action: 'start' | 'stop' | 'restart') =>
     invoke<ProjectView>('service_action', { id, service, action }),
   buildProject: (id: string, service: ServiceKind, test: boolean) =>

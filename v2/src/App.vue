@@ -14,6 +14,7 @@ import { confirmDialog, confirmState, resolveConfirm } from './services/confirm'
 import type { Project, ProjectView } from './types'
 
 const projects = ref<ProjectView[]>([])
+const dataDir = ref('')
 const editorOpen = ref(false)
 const editing = ref<ProjectView | null>(null)
 const settings = ref<any>({
@@ -59,6 +60,23 @@ function applyTheme(theme: any) {
 
 async function refresh() {
   if (!document.hidden) projects.value = await desktop.listProjects()
+}
+
+async function rescan() {
+  try {
+    projects.value = await desktop.rescanProjects()
+  } catch (error) {
+    alert(`${t('app.rescanFailed')}：${String(error)}`)
+  }
+}
+
+async function openDir() {
+  if (!dataDir.value) return
+  try {
+    await desktop.openPath(dataDir.value)
+  } catch (error) {
+    alert(`${t('app.openDataDirFailed')}：${String(error)}`)
+  }
 }
 
 function openEditor(project: ProjectView | null = null) {
@@ -124,6 +142,7 @@ onMounted(async () => {
   settings.value = await desktop.getSettings()
   language.value = settings.value.language
   applyTheme(settings.value.theme)
+  dataDir.value = await desktop.getProjectsDir().catch(() => '')
   await refresh()
   refreshTimer = window.setInterval(refresh, 10_000)
 })
@@ -196,6 +215,13 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
         <button class="primary" @click="openEditor()">＋ {{ t('app.import') }}</button>
       </nav>
     </header>
+
+    <div class="data-bar" v-if="dataDir">
+      <span class="data-bar-label">{{ t('app.projectsDir') }}</span>
+      <code class="data-bar-path" :title="dataDir">{{ dataDir }}</code>
+      <button type="button" @click="rescan" :title="t('app.rescan')">{{ t('app.rescan') }}</button>
+      <button type="button" @click="openDir" :title="t('app.openDataDir')">{{ t('app.openDataDir') }}</button>
+    </div>
 
     <section v-if="projects.length" class="project-grid">
       <ProjectCard

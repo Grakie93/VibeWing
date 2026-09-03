@@ -1,0 +1,15 @@
+{
+  "id": "file:my-app",
+  "name": "我的项目",
+  "path": "/Users/you/code/my-app",
+  "frontend_path": "/Users/you/code/my-app/web",
+  "frontend_cmd": "npm run dev",
+  "frontend_port": "5173",
+  "frontend_build": "npm run build",
+  "frontend_test_build": "npm run build -- --mode test",
+  "backend_path": "/Users/you/code/my-app/server",
+  "backend_cmd": "python main.py",
+  "backend_port": "8000",
+  "backend_build": "pip install -r requirements.txt",
+  "backend_test_build": "pytest"
+}

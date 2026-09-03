@@ -13,6 +13,17 @@ use crate::{
     storage::AppState,
 };
 
+/// True while the process is alive but its port is not yet listening, i.e. the
+/// service is "loading". Without a configured port we cannot observe readiness,
+/// so it falls back to the pid-only `running` state immediately.
+fn is_starting(project: &Project, service: ServiceKind) -> bool {
+    let port = service.port(project);
+    if port.trim().is_empty() {
+        return false;
+    }
+    processes::pid_alive(service.pid(project)) && !processes::port_open(port)
+}
+
 fn views(projects: &[Project]) -> Vec<ProjectView> {
     projects
         .iter()
@@ -20,6 +31,8 @@ fn views(projects: &[Project]) -> Vec<ProjectView> {
         .map(|project| ProjectView {
             frontend_running: processes::service_running(&project, ServiceKind::Frontend),
             backend_running: processes::service_running(&project, ServiceKind::Backend),
+            frontend_starting: is_starting(&project, ServiceKind::Frontend),
+            backend_starting: is_starting(&project, ServiceKind::Backend),
             project,
         })
         .collect()
@@ -66,10 +79,12 @@ pub fn save_project(
     } else {
         return Err("项目不存在".into());
     }
-    state.save_projects(&projects)?;
+    state.persist(&projects)?;
     Ok(ProjectView {
         frontend_running: processes::service_running(&project, ServiceKind::Frontend),
         backend_running: processes::service_running(&project, ServiceKind::Backend),
+        frontend_starting: is_starting(&project, ServiceKind::Frontend),
+        backend_starting: is_starting(&project, ServiceKind::Backend),
         project,
     })
 }
@@ -82,7 +97,12 @@ pub fn delete_project(state: State<'_, AppState>, id: String) -> Result<(), Stri
     if projects.len() == before {
         return Err("项目不存在或已经被移除".into());
     }
-    state.save_projects(&projects)
+    // A file-sourced project is removed from disk too; deleting the file is what
+    // actually un-imports it on the next rescan.
+    if let Some(stem) = id.strip_prefix("file:") {
+        let _ = fs::remove_file(state.projects_dir.join(format!("{stem}.json")));
+    }
+    state.persist(&projects)
 }
 
 #[tauri::command]
@@ -126,9 +146,11 @@ pub fn service_action(
     let view = ProjectView {
         frontend_running: processes::service_running(project, ServiceKind::Frontend),
         backend_running: processes::service_running(project, ServiceKind::Backend),
+        frontend_starting: is_starting(project, ServiceKind::Frontend),
+        backend_starting: is_starting(project, ServiceKind::Backend),
         project: project.clone(),
     };
-    state.save_projects(&projects)?;
+    state.persist(&projects)?;
     Ok(view)
 }
 
@@ -148,9 +170,46 @@ pub fn build_project(
     let view = ProjectView {
         frontend_running: processes::service_running(project, ServiceKind::Frontend),
         backend_running: processes::service_running(project, ServiceKind::Backend),
+        frontend_starting: is_starting(project, ServiceKind::Frontend),
+        backend_starting: is_starting(project, ServiceKind::Backend),
         project: project.clone(),
     };
     Ok(view)
+}
+
+#[tauri::command]
+pub fn rescan_projects(state: State<'_, AppState>) -> Result<Vec<ProjectView>, String> {
+    state.merge_discovered()?;
+    let projects = state.projects.lock().map_err(|error| error.to_string())?;
+    Ok(views(&projects))
+}
+
+#[tauri::command]
+pub fn get_projects_dir(state: State<'_, AppState>) -> String {
+    state.projects_dir.to_string_lossy().into_owned()
+}
+
+#[tauri::command]
+pub fn open_path(path: String) -> Result<(), String> {
+    let target = path.trim();
+    if target.is_empty() {
+        return Err("路径为空".into());
+    }
+    #[cfg(target_os = "macos")]
+    let status = Command::new("open").arg(target).status();
+    #[cfg(target_os = "windows")]
+    let status = Command::new("cmd").args(["/C", "start", "", target]).status();
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let status = Command::new("xdg-open").arg(target).status();
+    status
+        .map_err(|error| error.to_string())
+        .and_then(|status| {
+            if status.success() {
+                Ok(())
+            } else {
+                Err(format!("无法打开路径：{target}"))
+            }
+        })
 }
 
 #[tauri::command]

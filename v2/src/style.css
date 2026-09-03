@@ -187,6 +187,44 @@ main {
   background: var(--app-bg);
 }
 
+.data-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card-bg);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.data-bar-label {
+  font-weight: 600;
+  color: var(--app-text);
+  white-space: nowrap;
+}
+
+.data-bar-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.data-bar button {
+  height: 32px;
+  padding: 0 12px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 .brand {
   gap: 13px;
 }
@@ -330,12 +368,33 @@ nav, .actions {
 .project-card h2 {
   margin: 0;
   font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .project-card p {
   margin: 4px 0 0;
   color: var(--muted);
   font-size: 12px;
+}
+
+.source-badge {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 6px;
+  color: #2f7da8;
+  background: rgba(47, 125, 168, 0.12);
+  border: 1px solid rgba(47, 125, 168, 0.3);
+  white-space: nowrap;
+}
+
+.theme-dark .source-badge {
+  color: #8fd0ee;
+  background: rgba(143, 208, 238, 0.14);
+  border-color: rgba(143, 208, 238, 0.34);
 }
 
 .card-actions {
@@ -373,6 +432,31 @@ nav, .actions {
 .status-dot.running {
   background: #20b979;
   box-shadow: 0 0 8px rgba(32, 185, 121, 0.53);
+}
+
+.status-dot.starting {
+  background: #f5b301;
+  box-shadow: 0 0 8px rgba(245, 179, 1, 0.6);
+  animation: status-pulse 1s ease-in-out infinite;
+}
+
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.78); }
+}
+
+.status-text {
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.status-text.starting {
+  color: #c98a00;
+}
+
+.theme-dark .status-text.starting {
+  color: #f5b301;
 }
 
 .service-panel p {
@@ -1584,6 +1668,23 @@ nav, .actions {
   max-height: calc(100vh - 60px);
   padding: 22px;
   overflow-y: auto;
+}
+
+.editor-imported-hint {
+  margin: 12px 0 0;
+  padding: 9px 12px;
+  border-radius: 9px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #2f7da8;
+  background: rgba(47, 125, 168, 0.1);
+  border: 1px solid rgba(47, 125, 168, 0.28);
+}
+
+.theme-dark .editor-imported-hint {
+  color: #9bd6ef;
+  background: rgba(143, 208, 238, 0.12);
+  border-color: rgba(143, 208, 238, 0.3);
 }
 
 .project-editor > footer {

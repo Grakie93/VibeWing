@@ -62,6 +62,9 @@ async function remove() {
         <h2>{{ form.id ? t('editor.title.edit') : t('editor.title.new') }}</h2>
         <button type="button" :title="t('common.cancel')" @click="emit('close')">×</button>
       </header>
+      <p v-if="form.source === 'file'" class="editor-imported-hint">
+        {{ t('editor.importedHint') }}
+      </p>
       <label>
         {{ t('editor.field.name') }}
         <input v-model.trim="form.name" required />

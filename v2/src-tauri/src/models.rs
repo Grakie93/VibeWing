@@ -18,6 +18,12 @@ pub struct Project {
     pub backend_port: String,
     pub frontend_pid: Option<u32>,
     pub backend_pid: Option<u32>,
+    /// Where this project came from. `"file"` means it was discovered in the
+    /// `projects` data directory (written by a coding agent or the user) and is
+    /// persisted back to its own JSON file; any other value is a UI-authored
+    /// project stored in `projects.json`. Empty defaults to UI-authored.
+    #[serde(default)]
+    pub source: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -26,6 +32,12 @@ pub struct ProjectView {
     pub project: Project,
     pub frontend_running: bool,
     pub backend_running: bool,
+    /// True while the process is alive but its port is not yet listening — the
+    /// "loading" state the UI shows as a yellow light.
+    #[serde(default)]
+    pub frontend_starting: bool,
+    #[serde(default)]
+    pub backend_starting: bool,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize)]

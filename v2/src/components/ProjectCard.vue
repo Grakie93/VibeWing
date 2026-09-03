@@ -16,7 +16,10 @@ const emit = defineEmits<{
   <article class="project-card">
     <header class="project-header">
       <div>
-        <h2>{{ project.name }}</h2>
+        <h2>
+          {{ project.name }}
+          <span v-if="project.source === 'file'" class="source-badge" :title="t('project.importedHint')">{{ t('project.imported') }}</span>
+        </h2>
         <p>{{ project.path }}</p>
       </div>
       <div class="card-actions">

@@ -16,11 +16,15 @@ export interface Project {
   backend_port: string
   frontend_pid?: number | null
   backend_pid?: number | null
+  /** "file" = discovered in the projects data directory; omitted/empty = UI-authored. */
+  source?: string
 }
 
 export interface ProjectView extends Project {
   frontend_running: boolean
   backend_running: boolean
+  frontend_starting?: boolean
+  backend_starting?: boolean
 }
 
 export interface Settings {

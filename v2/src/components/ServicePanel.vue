@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { t } from '../i18n'
 import { desktop } from '../services/desktop'
 import type { ProjectView, ServiceKind } from '../types'
@@ -17,8 +17,26 @@ const contextMenuPos = ref({ x: 0, y: 0 })
 const logRef = ref<HTMLElement | null>(null)
 const buildMenuOpen = ref(false)
 let logInterval: number | null = null
+let startInterval: number | null = null
 
 const value = (suffix: string) => props.project[`${props.service}_${suffix}` as keyof ProjectView]
+const isStarting = computed(() => Boolean(value('starting')))
+
+// While a service is "starting" (pid alive, port not yet open) we can't rely on
+// the 10s global refresh to flip the light to green promptly, so poll the
+// project list locally until the service is ready or stopped.
+watch(
+  isStarting,
+  starting => {
+    if (starting && startInterval === null) {
+      startInterval = window.setInterval(() => emit('changed'), 1500)
+    } else if (!starting && startInterval !== null) {
+      clearInterval(startInterval)
+      startInterval = null
+    }
+  },
+  { immediate: true },
+)
 
 function inferBuildCommands(cmd: string): { build?: string; testBuild?: string } {
   const c = cmd.trim().toLowerCase()
@@ -201,6 +219,10 @@ onBeforeUnmount(() => {
   window.removeEventListener('click', hideContextMenu)
   window.removeEventListener('click', closeBuildMenu)
   stopLogPolling()
+  if (startInterval !== null) {
+    clearInterval(startInterval)
+    startInterval = null
+  }
 })
 </script>
 
@@ -208,8 +230,9 @@ onBeforeUnmount(() => {
   <section class="service-panel">
     <div class="service-title">
       <strong>
-        <i :class="['status-dot', { running: value('running') }]" />
+        <i :class="['status-dot', { running: value('running'), starting: value('starting') }]" />
         {{ t(`service.${service}`) }}
+        <span v-if="value('starting')" class="status-text starting">{{ t('service.starting') }}</span>
       </strong>
       <button
         v-if="value('port')"
