@@ -31,10 +31,18 @@ export interface Settings {
   language: 'zh-CN' | 'en'
   theme: { accent: string; bg: string; card: string; preset: string }
   check_updates: boolean
+  last_update_check?: number
   default_chat_model: string
   providers: Provider[]
   onboarding_complete?: boolean
   memory?: string
+}
+
+export interface UpdateInfo {
+  current_version: string
+  latest_version: string
+  has_update: boolean
+  html_url: string
 }
 
 export interface Provider { id:string; name:string; base_url:string; model:string; models?:string[]; model_names?:Record<string,string>; key_configured?: boolean }

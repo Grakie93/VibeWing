@@ -11,7 +11,7 @@ import ConfirmDialog from './components/ConfirmDialog.vue'
 import { language, t } from './i18n'
 import { desktop } from './services/desktop'
 import { confirmDialog, confirmState, resolveConfirm } from './services/confirm'
-import type { Project, ProjectView } from './types'
+import type { Project, ProjectView, UpdateInfo } from './types'
 
 const projects = ref<ProjectView[]>([])
 const dataDir = ref('')
@@ -21,6 +21,7 @@ const settings = ref<any>({
   language: 'zh-CN',
   theme: { accent: '#20bdb7', bg: '#f2fbfb', card: '#fff', preset: 'winglight' },
   check_updates: true,
+  last_update_check: 0,
   default_chat_model: '',
   providers: [],
   onboarding_complete: false,
@@ -30,6 +31,8 @@ const settingsOpen = ref(false)
 const gitOpen = ref(false)
 const gitProject = ref<ProjectView | null>(null)
 const pendingLog = ref('')
+const updateInfo = ref<UpdateInfo | null>(null)
+const checkingUpdate = ref(false)
 const logo = computed(() => (settings.value.theme?.preset === 'wingdark' ? logoDark : logoLight))
 let refreshTimer: number | undefined
 
@@ -138,6 +141,23 @@ async function onMemoryUpdated(memory: string) {
   }
 }
 
+async function checkUpdate() {
+  if (checkingUpdate.value) return
+  checkingUpdate.value = true
+  try {
+    const result = await desktop.checkUpdate()
+    updateInfo.value = result.has_update ? result : null
+    const updated = { ...settings.value, last_update_check: Math.floor(Date.now() / 1000) }
+    await desktop.saveSettings(updated)
+    settings.value = updated
+  } catch (error) {
+    console.error('Update check failed:', error)
+    updateInfo.value = null
+  } finally {
+    checkingUpdate.value = false
+  }
+}
+
 onMounted(async () => {
   settings.value = await desktop.getSettings()
   language.value = settings.value.language
@@ -145,6 +165,11 @@ onMounted(async () => {
   dataDir.value = await desktop.getProjectsDir().catch(() => '')
   await refresh()
   refreshTimer = window.setInterval(refresh, 10_000)
+
+  const last = settings.value.last_update_check || 0
+  if (settings.value.check_updates && Date.now() / 1000 - last > 86_400) {
+    checkUpdate()
+  }
 })
 
 onBeforeUnmount(() => clearInterval(refreshTimer))
@@ -221,6 +246,11 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
       <code class="data-bar-path" :title="dataDir">{{ dataDir }}</code>
       <button type="button" @click="rescan" :title="t('app.rescan')">{{ t('app.rescan') }}</button>
       <button type="button" @click="openDir" :title="t('app.openDataDir')">{{ t('app.openDataDir') }}</button>
+    </div>
+
+    <div v-if="updateInfo" class="update-banner">
+      <span>{{ t('app.updateAvailable', { current: updateInfo.current_version, latest: updateInfo.latest_version }) }}</span>
+      <button type="button" @click="desktop.openUrl(updateInfo.html_url)">{{ t('app.updateButton') }}</button>
     </div>
 
     <section v-if="projects.length" class="project-grid">

@@ -18,6 +18,8 @@ const messages: Record<Language, MessageMap> = {
     'app.openDataDir': '打开目录',
     'app.rescanFailed': '重新扫描失败',
     'app.openDataDirFailed': '打开目录失败',
+    'app.updateAvailable': '发现新版本 {latest}（当前 {current}）',
+    'app.updateButton': '去下载',
     'app.brand.tagline.dev': 'T',
 
     'project.imported': '外部导入',
@@ -185,6 +187,8 @@ const messages: Record<Language, MessageMap> = {
     'app.openDataDir': 'Open Folder',
     'app.rescanFailed': 'Rescan failed',
     'app.openDataDirFailed': 'Failed to open folder',
+    'app.updateAvailable': 'New version {latest} available (current {current})',
+    'app.updateButton': 'Download',
     'app.brand.tagline.dev': 'T',
 
     'project.imported': 'Imported',

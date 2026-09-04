@@ -225,6 +225,27 @@ main {
   white-space: nowrap;
 }
 
+.update-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--card-bg);
+  border: 1px solid var(--accent);
+  color: var(--app-text);
+  font-size: 13px;
+}
+
+.update-banner button {
+  height: 28px;
+  padding: 0 12px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 .brand {
   gap: 13px;
 }
@@ -605,14 +626,14 @@ nav, .actions {
   flex: 1;
 }
 
-.check-row {
+.dialog label.check-row {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-top: 14px;
 }
 
-.check-row input {
+.dialog label.check-row input {
   width: auto;
   height: auto;
 }

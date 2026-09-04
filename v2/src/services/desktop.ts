@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
-import type { Chat, Project, ProjectView, ServiceKind, Settings } from '../types'
+import type { Chat, Project, ProjectView, ServiceKind, Settings, UpdateInfo } from '../types'
 
 export const desktop = {
   listProjects: () => invoke<ProjectView[]>('list_projects'),
@@ -30,4 +30,5 @@ export const desktop = {
   providerKeyStatus: (providerId: string) => invoke<boolean>('provider_key_status', { providerId }),
   saveProviderKey: (providerId: string, key: string) => invoke<void>('save_provider_key', { providerId, key }),
   askAi: (request: {provider_id:string;model:string;messages:{role:string;content:string}[]}) => invoke<{content:string;elapsed_ms:number}>('ask_ai', { request }),
+  checkUpdate: () => invoke<UpdateInfo>('check_update'),
 }

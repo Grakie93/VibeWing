@@ -5,6 +5,7 @@ mod git;
 mod models;
 mod processes;
 mod storage;
+mod updater;
 
 use tauri::Manager;
 
@@ -49,6 +50,7 @@ pub fn run() {
             commands::provider_key_status,
             commands::save_provider_key,
             commands::ask_ai,
+            updater::check_update,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

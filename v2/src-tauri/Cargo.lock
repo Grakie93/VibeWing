@@ -4244,7 +4244,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "vibewing"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "aes-gcm",
  "base64ct",
@@ -4255,6 +4255,7 @@ dependencies = [
  "pbkdf2",
  "rand 0.8.8",
  "reqwest 0.12.28",
+ "semver",
  "serde",
  "serde_json",
  "sha2",
