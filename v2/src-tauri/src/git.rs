@@ -1,5 +1,4 @@
-use crate::models::Project;
-use std::process::Command;
+use crate::{models::Project, processes};
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct GitFile {
@@ -10,7 +9,9 @@ pub struct GitFile {
 }
 
 fn run(cwd: &str, args: &[&str]) -> Result<String, String> {
-    let output = Command::new("git")
+    // git.exe is a console application on Windows: without CREATE_NO_WINDOW
+    // every status poll, commit and push would flash a black window.
+    let output = processes::silent_command("git")
         .args(args)
         .current_dir(cwd)
         .output()

@@ -2,7 +2,6 @@ use std::{
     fs,
     time::{SystemTime, UNIX_EPOCH},
 };
-use std::process::Command;
 
 use tauri::State;
 
@@ -16,12 +15,17 @@ use crate::{
 /// True while the process is alive but its port is not yet listening, i.e. the
 /// service is "loading". Without a configured port we cannot observe readiness,
 /// so it falls back to the pid-only `running` state immediately.
+///
+/// The pid is checked with `spawned_by_us` rather than `pid_alive`: a pid the OS
+/// recycled for another process is still "alive", and a service that died while
+/// the app was closed would otherwise sit there pulsing a phantom "starting"
+/// light forever.
 fn is_starting(project: &Project, service: ServiceKind) -> bool {
     let port = service.port(project);
     if port.trim().is_empty() {
         return false;
     }
-    processes::pid_alive(service.pid(project)) && !processes::port_open(port)
+    processes::spawned_by_us(service.pid(project)) && !processes::port_open(port)
 }
 
 fn views(projects: &[Project]) -> Vec<ProjectView> {
@@ -112,11 +116,11 @@ pub fn open_url(url: String) -> Result<(), String> {
         return Err("仅支持打开 HTTP/HTTPS 地址".into());
     }
     #[cfg(target_os = "macos")]
-    let status = Command::new("open").arg(&url).status();
+    let status = processes::silent_command("open").arg(&url).status();
     #[cfg(target_os = "windows")]
-    let status = Command::new("cmd").args(["/C", "start", "", &url]).status();
+    let status = processes::silent_command("cmd").args(["/C", "start", "", &url]).status();
     #[cfg(all(unix, not(target_os = "macos")))]
-    let status = Command::new("xdg-open").arg(&url).status();
+    let status = processes::silent_command("xdg-open").arg(&url).status();
     status.map_err(|e| e.to_string()).and_then(|s| if s.success() { Ok(()) } else { Err(format!("无法打开地址：{url}")) })
 }
 
@@ -152,6 +156,23 @@ pub fn service_action(
     };
     state.persist(&projects)?;
     Ok(view)
+}
+
+/// The process tree a service is running as, flattened breadth-first.
+/// Answers "why does this service show up as N processes in Task Manager?"
+/// without making the customer or the support agent open the OS task list.
+#[tauri::command]
+pub fn service_processes(
+    state: State<'_, AppState>,
+    id: String,
+    service: ServiceKind,
+) -> Result<Vec<processes::ProcessInfo>, String> {
+    let projects = state.projects.lock().map_err(|e| e.to_string())?;
+    let project = projects
+        .iter()
+        .find(|project| project.id == id)
+        .ok_or("项目不存在")?;
+    Ok(processes::process_tree(service.pid(project)))
 }
 
 #[tauri::command]
@@ -196,11 +217,11 @@ pub fn open_path(path: String) -> Result<(), String> {
         return Err("路径为空".into());
     }
     #[cfg(target_os = "macos")]
-    let status = Command::new("open").arg(target).status();
+    let status = processes::silent_command("open").arg(target).status();
     #[cfg(target_os = "windows")]
-    let status = Command::new("cmd").args(["/C", "start", "", target]).status();
+    let status = processes::silent_command("cmd").args(["/C", "start", "", target]).status();
     #[cfg(all(unix, not(target_os = "macos")))]
-    let status = Command::new("xdg-open").arg(target).status();
+    let status = processes::silent_command("xdg-open").arg(target).status();
     status
         .map_err(|error| error.to_string())
         .and_then(|status| {

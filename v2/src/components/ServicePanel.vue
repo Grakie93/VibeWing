@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { t } from '../i18n'
 import { desktop } from '../services/desktop'
-import type { ProjectView, ServiceKind } from '../types'
+import type { ProcessInfo, ProjectView, ServiceKind } from '../types'
 
 const props = defineProps<{ project: ProjectView; service: ServiceKind }>()
 const emit = defineEmits<{ changed: []; askAi: [log: string] }>()
@@ -18,6 +18,31 @@ const logRef = ref<HTMLElement | null>(null)
 const buildMenuOpen = ref(false)
 let logInterval: number | null = null
 let startInterval: number | null = null
+const procsOpen = ref(false)
+const procs = ref<ProcessInfo[]>([])
+let procsInterval: number | null = null
+const totalMb = computed(() =>
+  procs.value.reduce((sum, p) => sum + p.memory_mb, 0),
+)
+
+async function refreshProcs() {
+  try {
+    procs.value = await desktop.serviceProcesses(props.project.id, props.service)
+  } catch {
+    procs.value = []
+  }
+}
+
+async function toggleProcesses() {
+  procsOpen.value = !procsOpen.value
+  if (procsOpen.value) {
+    await refreshProcs()
+    procsInterval = window.setInterval(refreshProcs, 5000)
+  } else if (procsInterval !== null) {
+    clearInterval(procsInterval)
+    procsInterval = null
+  }
+}
 
 const value = (suffix: string) => props.project[`${props.service}_${suffix}` as keyof ProjectView]
 const isStarting = computed(() => Boolean(value('starting')))
@@ -71,6 +96,7 @@ async function action(name: 'start' | 'stop' | 'restart') {
   try {
     await desktop.serviceAction(props.project.id, props.service, name)
     emit('changed')
+    if (procsOpen.value) refreshProcs()
   } catch (error) {
     alert(String(error))
   } finally {
@@ -223,6 +249,10 @@ onBeforeUnmount(() => {
     clearInterval(startInterval)
     startInterval = null
   }
+  if (procsInterval !== null) {
+    clearInterval(procsInterval)
+    procsInterval = null
+  }
 })
 </script>
 
@@ -269,6 +299,7 @@ onBeforeUnmount(() => {
         </div>
       </div>
       <button @click="toggleLog">{{ t('service.logs') }}</button>
+      <button @click="toggleProcesses">{{ t('service.processes') }}</button>
     </div>
     <div v-if="logOpen" ref="logRef" class="log-view">
       <div class="log-header">
@@ -291,6 +322,24 @@ onBeforeUnmount(() => {
         <button type="button" @mousedown.prevent="copySelected">{{ t('chat.context.copy') }}</button>
         <button type="button" @mousedown.prevent="askSelected">{{ t('chat.context.askAi') }}</button>
       </div>
+    </div>
+    <div v-if="procsOpen" class="proc-view">
+      <div class="proc-header">
+        <span>{{ t('service.processes') }} · {{ procs.length }} · {{ totalMb.toFixed(1) }} MB</span>
+        <span class="proc-legend">
+          <span class="badge ours">{{ t('service.processesOurs') }}</span>
+          <span class="badge tool">{{ t('service.toolchain') }}</span>
+        </span>
+      </div>
+      <ul v-if="procs.length" class="proc-list">
+        <li v-for="p in procs" :key="p.pid">
+          <span :class="['badge', p.ours ? 'ours' : 'tool']">{{ p.ours ? t('service.processesOurs') : t('service.toolchain') }}</span>
+          <span class="pname">{{ p.name }}</span>
+          <span class="ppid">#{{ p.pid }}</span>
+          <span class="pmem">{{ p.memory_mb.toFixed(1) }} MB</span>
+        </li>
+      </ul>
+      <p v-else class="hint">{{ t('service.processesEmpty') }}</p>
     </div>
   </section>
 </template>

@@ -89,10 +89,6 @@ function clearSelection() {
   selected.value = []
 }
 
-function toggleCommitLocale() {
-  commitLocale.value = commitLocale.value === 'zh' ? 'en' : 'zh'
-}
-
 async function commit() {
   if (!message.value.trim()) {
     error.value = t('git.error.emptyMessage')
@@ -234,9 +230,25 @@ watch(scope, refresh, { immediate: true })
         {{ t('git.commit.message') }}
         <textarea v-model="message" rows="3" :placeholder="t('git.commit.placeholder')" />
       </label>
-      <button type="button" class="commit-lang-toggle" @click="toggleCommitLocale">
-        {{ commitLocale === 'zh' ? '中' : 'En' }}
-      </button>
+      <div class="commit-lang-toggle" role="group" aria-label="Commit message language">
+        <span class="slider" :class="{ zh: commitLocale === 'zh' }"></span>
+        <button
+          type="button"
+          :class="{ active: commitLocale === 'en' }"
+          :aria-pressed="commitLocale === 'en'"
+          @click="commitLocale = 'en'"
+        >
+          EN
+        </button>
+        <button
+          type="button"
+          :class="{ active: commitLocale === 'zh' }"
+          :aria-pressed="commitLocale === 'zh'"
+          @click="commitLocale = 'zh'"
+        >
+          中文
+        </button>
+      </div>
     </div>
 
     <div class="git-actions">

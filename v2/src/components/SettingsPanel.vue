@@ -234,7 +234,7 @@ async function confirmAdd() {
                   class="inline-edit"
                   :title="t('settings.models.editProvider')"
                   @click="editingProvider = true"
-                >✎</button>
+                >{{ t('settings.models.edit') }}</button>
               </p>
               <div class="model-list">
                 <span

@@ -1,6 +1,6 @@
 [package]
 name = "vibewing"
-version = "2.1.1"
+version = "2.1.2"
 description = "A lightweight desktop workspace for vibe coding projects"
 authors = ["Grakie93"]
 license = "MIT"
@@ -34,6 +34,11 @@ sha2 = "0.10"
 rand = "0.8"
 base64ct = { version = "1", features = ["alloc"] }
 semver = "1"
+# Process tree inspection for the "why does one service show up as N
+# processes?" view. Chosen over shelling out to `ps`/`wmic`/PowerShell because
+# it is the only cross-platform way to get parent pids from Rust without
+# hand-written Win32 FFI.
+sysinfo = "0.30"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

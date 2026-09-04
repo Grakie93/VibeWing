@@ -27,6 +27,17 @@ export interface ProjectView extends Project {
   backend_starting?: boolean
 }
 
+export interface ProcessInfo {
+  pid: number
+  name: string
+  memory_mb: number
+  /** True for the wrapper shell VibeWing spawned. Every other entry in the
+  tree was started by the project's own toolchain (npm -> node -> vite,
+  uvicorn's --reload pair, etc.), which is why a single service can show up
+  as several Node or Python processes in Task Manager. */
+  ours: boolean
+}
+
 export interface Settings {
   language: 'zh-CN' | 'en'
   theme: { accent: string; bg: string; card: string; preset: string }

@@ -32,6 +32,7 @@ pub fn run() {
             commands::rescan_projects,
             commands::get_projects_dir,
             commands::service_action,
+            commands::service_processes,
             commands::build_project,
             commands::read_log,
             commands::clear_log,

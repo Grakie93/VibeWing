@@ -6,6 +6,10 @@
 
 :root {
   --accent: #20bdb7;
+  /* Slider fill that stays readable under white text in both themes. The
+     regular --accent is too light in dark mode (white on light teal ~1.6:1),
+     so the language toggle uses this deeper teal instead. */
+  --accent-strong: #118a86;
   --app-bg: #f2fbfb;
   --card-bg: #ffffff;
   --app-text: #173044;
@@ -28,6 +32,7 @@
 :root.theme-dark,
 .theme-dark {
   --accent: #77d9d2;
+  --accent-strong: #1aa39e;
   --app-bg: #10232e;
   --card-bg: #183743;
   --app-text: #e7fbfa;
@@ -1308,8 +1313,9 @@ nav, .actions {
 }
 
 .git-file {
-  display: grid;
-  grid-template-columns: 22px 64px minmax(0, 1fr);
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
   align-items: center;
   gap: 8px;
   padding: 6px 4px;
@@ -1318,7 +1324,7 @@ nav, .actions {
 }
 
 .git-file input[type='checkbox'] {
-  display: block;
+  flex: 0 0 16px;
   width: 16px;
   height: 16px;
   margin: 0;
@@ -1326,12 +1332,15 @@ nav, .actions {
 }
 
 .git-file .git-status {
+  flex: 0 0 auto;
   white-space: nowrap;
   font-size: 12px;
   font-weight: 500;
 }
 
 .git-file code {
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1409,7 +1418,7 @@ nav, .actions {
   width: 100%;
   margin-top: 5px;
   padding: 10px;
-  padding-right: 64px;
+  padding-right: 96px;
   border: 1px solid var(--border-strong);
   border-radius: 10px;
   resize: none;
@@ -1421,10 +1430,152 @@ nav, .actions {
   position: absolute;
   right: 8px;
   bottom: 8px;
+  display: flex;
+  align-items: center;
   height: 28px;
-  padding: 0 8px;
+  padding: 2px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.commit-lang-toggle button {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 24px;
+  padding: 0;
   font-size: 12px;
-  border-radius: 8px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--muted);
+  background: transparent !important;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.commit-lang-toggle button.active {
+  color: #fff;
+  font-weight: 700;
+}
+
+/* Prevent the global button hover background from covering the slider/text. */
+.commit-lang-toggle button:hover:not(:disabled),
+.theme-dark .commit-lang-toggle button:hover:not(:disabled) {
+  background: transparent;
+}
+
+.commit-lang-toggle .slider {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 44px;
+  height: 24px;
+  background: var(--accent-strong);
+  border-radius: 12px;
+  transition: transform 0.2s ease;
+  z-index: 1;
+}
+
+/* Dark mode: use the same deep teal as light mode with white text, so the
+   selected label stays clearly legible. */
+.theme-dark .commit-lang-toggle .slider {
+  background: var(--accent-strong);
+}
+
+.commit-lang-toggle .slider.zh {
+  transform: translateX(44px);
+}
+
+/* ---------- process panel ---------- */
+.proc-view {
+  margin-top: 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--input-bg);
+  overflow: hidden;
+  font-size: 12px;
+}
+
+.proc-view .proc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--app-text);
+  font-weight: 600;
+}
+
+.proc-view .proc-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 400;
+}
+
+.proc-view .badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.proc-view .badge.ours {
+  background: var(--accent-strong);
+  color: #fff;
+}
+
+.proc-view .badge.tool {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.proc-view .proc-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.proc-view .proc-list li {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.proc-view .proc-list .pname {
+  color: var(--app-text);
+}
+
+.proc-view .proc-list .ppid {
+  color: var(--muted);
+}
+
+.proc-view .proc-list .pmem {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 64px;
+  text-align: right;
+}
+
+.proc-view .hint {
+  margin: 8px 12px;
+  color: var(--muted);
 }
 
 .git-actions {
@@ -1631,22 +1782,29 @@ nav, .actions {
 }
 
 .inline-edit {
-  width: 22px;
+  display: inline-flex;
+  align-items: center;
   height: 22px;
+  padding: 0 8px;
   margin-left: 8px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--muted);
-  font-size: 13px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--card-bg);
+  color: var(--app-text);
+  font-size: 12px;
   line-height: 1;
   vertical-align: middle;
-  transition: background-color 0.15s, color 0.15s;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
 }
 
 .inline-edit:hover {
   background: var(--accent);
+  border-color: var(--accent);
+  color: var(--app-text);
+}
+
+.theme-dark .inline-edit:hover {
   color: var(--primary-contrast);
 }
 

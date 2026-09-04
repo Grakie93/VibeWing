@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
-import type { Chat, Project, ProjectView, ServiceKind, Settings, UpdateInfo } from '../types'
+import type { Chat, ProcessInfo, Project, ProjectView, ServiceKind, Settings, UpdateInfo } from '../types'
 
 export const desktop = {
   listProjects: () => invoke<ProjectView[]>('list_projects'),
@@ -11,6 +11,8 @@ export const desktop = {
   getProjectsDir: () => invoke<string>('get_projects_dir'),
   serviceAction: (id: string, service: ServiceKind, action: 'start' | 'stop' | 'restart') =>
     invoke<ProjectView>('service_action', { id, service, action }),
+  serviceProcesses: (id: string, service: ServiceKind) =>
+    invoke<ProcessInfo[]>('service_processes', { id, service }),
   buildProject: (id: string, service: ServiceKind, test: boolean) =>
     invoke<ProjectView>('build_project', { id, service, test }),
   readLog: (id: string, service: ServiceKind) => invoke<string>('read_log', { id, service }),
