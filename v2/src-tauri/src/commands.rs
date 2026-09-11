@@ -293,16 +293,18 @@ pub fn git_commit(
     id: String,
     scope: String,
     message: String,
+    paths: Option<Vec<String>>,
 ) -> Result<String, String> {
     if message.trim().is_empty() {
         return Err("提交信息不能为空".into());
     }
     let projects = state.projects.lock().map_err(|e| e.to_string())?;
     let project = projects.iter().find(|p| p.id == id).ok_or("项目不存在")?;
-    git::root(project, &scope).and_then(|cwd| git::commit(&cwd, message.trim()))
+    let paths = paths.as_deref().unwrap_or(&[]);
+    git::root(project, &scope).and_then(|cwd| git::commit(&cwd, message.trim(), paths))
 }
 #[tauri::command]
-pub fn git_push(state: State<'_, AppState>, id: String, scope: String) -> Result<(), String> {
+pub fn git_push(state: State<'_, AppState>, id: String, scope: String) -> Result<String, String> {
     let projects = state.projects.lock().map_err(|e| e.to_string())?;
     let project = projects.iter().find(|p| p.id == id).ok_or("项目不存在")?;
     git::root(project, &scope).and_then(|cwd| git::push(&cwd))

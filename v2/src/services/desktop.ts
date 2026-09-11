@@ -21,8 +21,9 @@ export const desktop = {
   saveChats: (chats: Chat[]) => invoke<void>('save_chats', { chats }),
   gitStatus: (id: string, scope: string) => invoke<{path:string;status:string;staged:boolean;unstaged:boolean}[]>('git_status', { id, scope }),
   gitStage: (id: string, scope: string, paths: string[]) => invoke<void>('git_stage', { id, scope, paths }),
-  gitCommit: (id: string, scope: string, message: string) => invoke<string>('git_commit', { id, scope, message }),
-  gitPush: (id: string, scope: string) => invoke<void>('git_push', { id, scope }),
+  gitCommit: (id: string, scope: string, message: string, paths?: string[]) =>
+    invoke<string>('git_commit', { id, scope, message, paths }),
+  gitPush: (id: string, scope: string) => invoke<string>('git_push', { id, scope }),
   gitBranches: (id: string, scope: string) => invoke<string[]>('git_branches', { id, scope }),
   gitCurrentBranch: (id: string, scope: string) => invoke<string>('git_current_branch', { id, scope }),
   gitSwitchBranch: (id: string, scope: string, branch: string) => invoke<void>('git_switch_branch', { id, scope, branch }),

@@ -20,6 +20,7 @@ const selected = ref<string[]>([])
 const message = ref('')
 const busy = ref(false)
 const error = ref('')
+const info = ref('')
 const aiBusy = ref(false)
 const commitLocale = ref<'zh' | 'en'>('zh')
 
@@ -60,7 +61,7 @@ async function refresh() {
     files.value = await desktop.gitStatus(props.project.id, scope.value)
     branches.value = await desktop.gitBranches(props.project.id, scope.value)
     branch.value = await desktop.gitCurrentBranch(props.project.id, scope.value)
-    selected.value = files.value.filter(file => !(file.staged && !file.unstaged)).map(file => file.path)
+    selected.value = files.value.map(file => file.path)
   } catch (cause) {
     error.value = String(cause)
     files.value = []
@@ -83,7 +84,7 @@ async function stage() {
 }
 
 function selectAll() {
-  selected.value = files.value.filter(file => !(file.staged && !file.unstaged)).map(file => file.path)
+  selected.value = files.value.map(file => file.path)
 }
 function clearSelection() {
   selected.value = []
@@ -130,7 +131,42 @@ async function generateMessage() {
 }
 
 async function push() {
-  await run(t('git.commit.push'), () => desktop.gitPush(props.project.id, scope.value))
+  info.value = ''
+  // "Select files → push" should actually push something. If there are still
+  // uncommitted changes, commit them first (using the message box) before
+  // pushing — otherwise `git push` just reports "up to date" and silently does
+  // nothing. Staged files are already part of the next commit, so we only need
+  // to stage whatever is still unstaged (the selected ones, or all of them when
+  // nothing is selected) and then `git commit` picks up everything staged.
+  const dirty = files.value.some(file => file.unstaged || file.staged)
+  if (dirty) {
+    if (!message.value.trim()) {
+      error.value = t('git.error.emptyMessage')
+      return
+    }
+    await run(t('git.commit.commit'), async () => {
+      // Stage only the selected files, then commit only those paths so any
+      // other already-staged files are left untouched. If nothing is selected
+      // we fall back to committing everything currently staged.
+      if (selected.value.length) {
+        await desktop.gitStage(props.project.id, scope.value, selected.value)
+      }
+      await desktop.gitCommit(props.project.id, scope.value, message.value.trim(), selected.value)
+      message.value = ''
+    })
+    if (error.value) return
+  }
+  busy.value = true
+  error.value = ''
+  try {
+    const result = await desktop.gitPush(props.project.id, scope.value)
+    info.value = result.trim() || t('git.push.upToDate')
+  } catch (cause) {
+    error.value = `${t('git.commit.push')}: ${String(cause)}`
+  } finally {
+    busy.value = false
+    await refresh()
+  }
 }
 
 async function run(label: string, action: () => Promise<unknown>) {
@@ -188,6 +224,7 @@ watch(scope, refresh, { immediate: true })
     </div>
 
     <p v-if="error" class="git-error">{{ error }}</p>
+    <p v-if="info" class="git-info">{{ info }}</p>
 
     <div v-if="!files.length" class="git-empty">{{ t('git.empty') }}</div>
     <div v-else class="git-files">
@@ -210,14 +247,12 @@ watch(scope, refresh, { immediate: true })
         <label
           v-for="file in stagedFiles"
           :key="`s-${file.path}`"
-          class="git-file"
-          :class="{ disabled: file.staged && !file.unstaged }"
+          class="git-file staged"
         >
           <input
             v-model="selected"
             type="checkbox"
             :value="file.path"
-            :disabled="file.staged && !file.unstaged"
           />
           <span :class="['git-status', statusClass(file)]">{{ statusLabel(file) }}</span>
           <code :title="file.path">{{ file.path }}</code>
@@ -262,3 +297,22 @@ watch(scope, refresh, { immediate: true })
     </div>
   </section>
 </template>
+
+<style scoped>
+.git-file.staged {
+  background: rgba(31, 122, 61, 0.06);
+  border-left: 2px solid rgba(31, 122, 61, 0.4);
+}
+.git-info {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #1f7a3d;
+  background: rgba(31, 122, 61, 0.1);
+  border: 1px solid rgba(31, 122, 61, 0.3);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+</style>
