@@ -140,6 +140,7 @@ pub struct Settings {
     pub providers: Vec<Provider>,
     pub onboarding_complete: bool,
     pub memory: String,
+    pub pinned_ids: Vec<String>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -176,6 +177,7 @@ impl Default for Settings {
             providers: Vec::new(),
             onboarding_complete: false,
             memory: String::new(),
+            pinned_ids: Vec::new(),
         }
     }
 }

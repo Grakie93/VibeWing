@@ -3,6 +3,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { desktop } from '../services/desktop'
 import { language, t } from '../i18n'
 import { confirmDialog } from '../services/confirm'
+import { Plus, X } from '@lucide/vue'
 import type { Provider, Settings, UpdateInfo } from '../types'
 
 const props = defineProps<{ open: boolean; settings: Settings; updateInfo: UpdateInfo | null }>()
@@ -161,7 +162,7 @@ async function confirmAdd() {
     <form class="dialog settings-dialog" @submit.prevent="save">
       <header>
         <h2>{{ t('settings.title') }}</h2>
-        <button type="button" :title="t('common.cancel')" @click="emit('close')">×</button>
+        <button type="button" :aria-label="t('common.cancel')" @click="emit('close')"><X /></button>
       </header>
       <div class="settings-layout">
         <aside>
@@ -222,11 +223,11 @@ async function confirmAdd() {
               <button
                 type="button"
                 class="chip-remove"
-                :title="t('settings.models.deletePlatform')"
+                :aria-label="t('settings.models.deletePlatform')"
                 @click.stop="removeProvider(provider.id)"
-              >×</button>
+              ><X /></button>
             </span>
-            <button type="button" @click="addProvider">＋ {{ t('settings.models.add') }}</button>
+            <button type="button" @click="addProvider"><Plus /> {{ t('settings.models.add') }}</button>
           </div>
 
           <template v-if="current">
@@ -249,7 +250,7 @@ async function confirmAdd() {
                   <button type="button" @click="current.model = id">
                     {{ current.model_names?.[id] || id }}
                   </button>
-                  <button type="button" class="chip-remove" :title="t('common.cancel')" @click.stop="removeModel(id)">×</button>
+                  <button type="button" class="chip-remove" :aria-label="t('common.cancel')" @click.stop="removeModel(id)"><X /></button>
                 </span>
                 <span v-if="!current.models?.length" class="hint">{{ t('settings.models.noModel') }}</span>
               </div>
@@ -270,7 +271,7 @@ async function confirmAdd() {
                     @keyup.enter="addModel"
                   />
                 </label>
-                <button type="button" @click="addModel">＋ {{ t('settings.models.addModel') }}</button>
+                <button type="button" @click="addModel"><Plus /> {{ t('settings.models.addModel') }}</button>
               </div>
             </template>
             <template v-else>

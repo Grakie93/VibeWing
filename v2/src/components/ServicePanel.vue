@@ -237,10 +237,10 @@ onBeforeUnmount(() => {
         v-if="value('port')"
         type="button"
         class="port-link"
-        :title="t('service.logs')"
+        :title="t('service.visitPort')"
         @click="openPort"
       >
-        Port {{ value('port') }} ↗
+        Port {{ value('port') }} <ExternalLink />
       </button>
       <span v-else>—</span>
     </div>
@@ -267,12 +267,25 @@ onBeforeUnmount(() => {
           >{{ t('service.buildTest') }}</button>
         </div>
       </div>
-      <button @click="toggleLog">{{ t('service.logs') }}</button>
+      <button @click="toggleLog">{{ logOpen ? t('service.hideLogs') : t('service.logs') }}</button>
     </div>
     <div v-if="logOpen" ref="logRef" class="log-view">
       <div class="log-header">
         <span>{{ t('service.logs') }}</span>
-        <button type="button" class="log-clear" @click="clearLog">{{ t('service.clearLogs') }}</button>
+        <button
+          type="button"
+          class="log-clear"
+          :title="t('service.clearLogs')"
+          :aria-label="t('service.clearLogs')"
+          @click="clearLog"
+        >
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            <line x1="10" y1="11" x2="10" y2="17" />
+            <line x1="14" y1="11" x2="14" y2="17" />
+          </svg>
+        </button>
       </div>
       <pre @mouseup="updateToolbar" @contextmenu="onContextMenu">{{ log || t('service.emptyLogs') }}</pre>
       <div

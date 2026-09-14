@@ -23,6 +23,7 @@ pub fn run() {
             app.manage(storage::AppState::load(app.handle()).map_err(std::io::Error::other)?);
             Ok(())
         })
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             commands::list_projects,
             commands::save_project,
@@ -41,7 +42,9 @@ pub fn run() {
             commands::save_chats,
             commands::git_status,
             commands::git_stage,
+            commands::git_unstage,
             commands::git_commit,
+            commands::git_diff,
             commands::git_push,
             commands::git_branches,
             commands::git_current_branch,

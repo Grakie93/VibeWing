@@ -1,15 +1,19 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { t } from '../i18n'
 import type { ProjectView } from '../types'
+import { Pin } from '@lucide/vue'
 import ServicePanel from './ServicePanel.vue'
 
-defineProps<{ project: ProjectView }>()
+const props = defineProps<{ project: ProjectView; pinned?: boolean }>()
 const emit = defineEmits<{
   edit: [project: ProjectView]
   changed: []
   git: [project: ProjectView]
   askAi: [log: string]
+  togglePin: [id: string]
 }>()
+const isPinned = computed(() => Boolean(props.pinned))
 </script>
 
 <template>
@@ -23,6 +27,14 @@ const emit = defineEmits<{
         <p>{{ project.path }}</p>
       </div>
       <div class="card-actions">
+        <button
+          type="button"
+          class="pin-btn"
+          :class="{ pinned: isPinned }"
+          :data-tip="isPinned ? t('project.unpin') : t('project.pin')"
+          :aria-label="isPinned ? t('project.unpin') : t('project.pin')"
+          @click="emit('togglePin', project.id)"
+        ><Pin /></button>
         <button @click="emit('edit', project)">{{ t('editor.title.edit') }}</button>
         <button @click="emit('git', project)">Git</button>
       </div>

@@ -304,6 +304,8 @@ npm start
 
 Local development data files are intentionally ignored by Git. Do not force-add `projects.json`, `settings.json`, `chats.json`, `logs/`, `.env` files, certificates, or signing keys.
 
+> Working on the next-generation Tauri 2 build in the `v2/` directory? It needs a **Rust toolchain** in addition to Node.js. See [**VibeWing 2.0 development**](v2/README.md) for prerequisites and `npm run tauri dev` instructions.
+
 ## Build desktop packages
 
 Build on the target operating system:

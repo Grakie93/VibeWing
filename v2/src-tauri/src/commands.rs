@@ -42,6 +42,26 @@ fn views(projects: &[Project]) -> Vec<ProjectView> {
         .collect()
 }
 
+/// Returns the git pathspec that restricts a scope (frontend/backend) to its
+/// own directory, relative to the repo root. This lets a single monorepo be
+/// committed as two independent sets of changes. Returns `None` when the scope
+/// directory is the repo root itself (or unset), meaning no filtering.
+fn scope_rel(project: &Project, scope: &str, cwd: &str) -> Option<String> {
+    let dir = if scope == "backend" {
+        &project.backend_path
+    } else {
+        &project.frontend_path
+    };
+    if dir.trim().is_empty() {
+        return None;
+    }
+    std::path::Path::new(dir)
+        .strip_prefix(std::path::Path::new(cwd))
+        .ok()
+        .map(|p| p.to_string_lossy().into_owned())
+        .filter(|s| !s.is_empty())
+}
+
 #[tauri::command]
 pub fn list_projects(state: State<'_, AppState>) -> Result<Vec<ProjectView>, String> {
     let projects = state.projects.lock().map_err(|error| error.to_string())?;
@@ -274,7 +294,9 @@ pub fn git_status(
 ) -> Result<Vec<git::GitFile>, String> {
     let projects = state.projects.lock().map_err(|e| e.to_string())?;
     let project = projects.iter().find(|p| p.id == id).ok_or("项目不存在")?;
-    git::root(project, &scope).and_then(|cwd| git::files(&cwd))
+    let cwd = git::root(project, &scope)?;
+    let spec = scope_rel(project, &scope, &cwd);
+    git::files(&cwd, spec.as_deref())
 }
 #[tauri::command]
 pub fn git_stage(
@@ -288,6 +310,17 @@ pub fn git_stage(
     git::root(project, &scope).and_then(|cwd| git::stage(&cwd, &paths))
 }
 #[tauri::command]
+pub fn git_unstage(
+    state: State<'_, AppState>,
+    id: String,
+    scope: String,
+    paths: Vec<String>,
+) -> Result<(), String> {
+    let projects = state.projects.lock().map_err(|e| e.to_string())?;
+    let project = projects.iter().find(|p| p.id == id).ok_or("项目不存在")?;
+    git::root(project, &scope).and_then(|cwd| git::unstage(&cwd, &paths))
+}
+#[tauri::command]
 pub fn git_commit(
     state: State<'_, AppState>,
     id: String,
@@ -299,10 +332,25 @@ pub fn git_commit(
     }
     let projects = state.projects.lock().map_err(|e| e.to_string())?;
     let project = projects.iter().find(|p| p.id == id).ok_or("项目不存在")?;
-    git::root(project, &scope).and_then(|cwd| git::commit(&cwd, message.trim()))
+    let cwd = git::root(project, &scope)?;
+    let spec = scope_rel(project, &scope, &cwd);
+    git::commit(&cwd, message.trim(), spec.as_deref())
 }
 #[tauri::command]
-pub fn git_push(state: State<'_, AppState>, id: String, scope: String) -> Result<(), String> {
+pub fn git_diff(
+    state: State<'_, AppState>,
+    id: String,
+    scope: String,
+    cached: bool,
+) -> Result<String, String> {
+    let projects = state.projects.lock().map_err(|e| e.to_string())?;
+    let project = projects.iter().find(|p| p.id == id).ok_or("项目不存在")?;
+    let cwd = git::root(project, &scope)?;
+    let spec = scope_rel(project, &scope, &cwd);
+    git::diff(&cwd, cached, spec.as_deref())
+}
+#[tauri::command]
+pub fn git_push(state: State<'_, AppState>, id: String, scope: String) -> Result<String, String> {
     let projects = state.projects.lock().map_err(|e| e.to_string())?;
     let project = projects.iter().find(|p| p.id == id).ok_or("项目不存在")?;
     git::root(project, &scope).and_then(|cwd| git::push(&cwd))

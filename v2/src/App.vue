@@ -8,14 +8,18 @@ import ChatPanel from './components/ChatPanel.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
 import GitPanel from './components/GitPanel.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
+import NotifyContainer from './components/NotifyContainer.vue'
 import { language, t } from './i18n'
+import { Search, MessageSquare, Settings, Plus, X } from '@lucide/vue'
 import { desktop } from './services/desktop'
 import { confirmDialog, confirmState, resolveConfirm } from './services/confirm'
+import { initInstantTooltips } from './services/tooltip'
 import type { Project, ProjectView, UpdateInfo } from './types'
 
 const updateModalOpen = ref(false)
 
 const projects = ref<ProjectView[]>([])
+const searchQuery = ref('')
 const dataDir = ref('')
 const editorOpen = ref(false)
 const editing = ref<ProjectView | null>(null)
@@ -63,13 +67,31 @@ function applyTheme(theme: any) {
   )
 }
 
+function sortProjects(list: ProjectView[]): ProjectView[] {
+  const pinned: string[] = settings.value.pinned_ids || []
+  const pinnedSet = new Set(pinned)
+  const top = pinned
+    .map(id => list.find(p => p.id === id))
+    .filter((p): p is ProjectView => Boolean(p))
+  const rest = list.filter(p => !pinnedSet.has(p.id))
+  return [...top, ...rest]
+}
+
+const visibleProjects = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  if (!q) return projects.value
+  return projects.value.filter(
+    p => p.name.toLowerCase().includes(q) || (p.path || '').toLowerCase().includes(q),
+  )
+})
+
 async function refresh() {
-  if (!document.hidden) projects.value = await desktop.listProjects()
+  if (!document.hidden) projects.value = sortProjects(await desktop.listProjects())
 }
 
 async function rescan() {
   try {
-    projects.value = await desktop.rescanProjects()
+    projects.value = sortProjects(await desktop.rescanProjects())
   } catch (error) {
     alert(`${t('app.rescanFailed')}：${String(error)}`)
   }
@@ -118,6 +140,21 @@ async function remove(id: string) {
 function askSelectedLog(log: string) {
   pendingLog.value = log
   chatOpen.value = true
+}
+
+async function togglePin(id: string) {
+  const current: string[] = settings.value.pinned_ids || []
+  const next = current.includes(id)
+    ? current.filter((x: string) => x !== id)
+    : [...current, id]
+  const updated = { ...settings.value, pinned_ids: next }
+  try {
+    await desktop.saveSettings(updated)
+    settings.value = updated
+    projects.value = sortProjects(projects.value)
+  } catch (error) {
+    alert(`${t('project.pin')}${t('chat.requestFailed')}${String(error)}`)
+  }
 }
 
 async function toggleTheme() {
@@ -193,6 +230,7 @@ function openUpdateUrl() {
 }
 
 onMounted(async () => {
+  initInstantTooltips()
   settings.value = await desktop.getSettings()
   language.value = settings.value.language
   applyTheme(settings.value.theme)
@@ -210,6 +248,7 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
 
 <template>
   <main>
+    <NotifyContainer />
     <header class="topbar">
       <div class="brand">
         <img :src="logo" alt="VibeWing" />
@@ -268,17 +307,33 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
         </div>
       </div>
       <nav>
-        <button @click="chatOpen = true">💬 {{ t('app.ai') }}</button>
-        <button @click="settingsOpen = true">⚙ {{ t('app.settings') }}</button>
-        <button class="primary" @click="openEditor()">＋ {{ t('app.import') }}</button>
+        <div class="search-box">
+          <span class="search-icon" aria-hidden="true"><Search /></span>
+          <input
+            v-model="searchQuery"
+            type="search"
+            class="search-input"
+            :placeholder="t('app.searchPlaceholder')"
+          />
+          <button
+            type="button"
+            class="search-clear"
+            :style="{ visibility: searchQuery ? 'visible' : 'hidden' }"
+            :aria-label="t('app.searchClear')"
+            @click="searchQuery = ''"
+          ><X /></button>
+        </div>
+        <button @click="chatOpen = true"><MessageSquare /> {{ t('app.ai') }}</button>
+        <button @click="settingsOpen = true"><Settings /> {{ t('app.settings') }}</button>
+        <button class="primary" @click="openEditor()"><Plus /> {{ t('app.import') }}</button>
       </nav>
     </header>
 
     <div class="data-bar" v-if="dataDir">
       <span class="data-bar-label">{{ t('app.projectsDir') }}</span>
-      <code class="data-bar-path" :title="dataDir">{{ dataDir }}</code>
-      <button type="button" @click="rescan" :title="t('app.rescan')">{{ t('app.rescan') }}</button>
-      <button type="button" @click="openDir" :title="t('app.openDataDir')">{{ t('app.openDataDir') }}</button>
+      <code class="data-bar-path">{{ dataDir }}</code>
+      <button type="button" @click="rescan">{{ t('app.rescan') }}</button>
+      <button type="button" @click="openDir">{{ t('app.openDataDir') }}</button>
     </div>
 
     <div v-if="updateModalOpen && updateInfo" class="modal update-modal" @mousedown.self="laterUpdate">
@@ -293,17 +348,20 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
       </section>
     </div>
 
-    <section v-if="projects.length" class="project-grid">
+    <section v-if="visibleProjects.length" class="project-grid">
       <ProjectCard
-        v-for="project in projects"
+        v-for="project in visibleProjects"
         :key="project.id"
         :project="project"
+        :pinned="settings.pinned_ids?.includes(project.id)"
         @edit="openEditor"
         @changed="refresh"
         @git="(p: ProjectView) => { gitProject = p; gitOpen = true }"
         @ask-ai="askSelectedLog"
+        @toggle-pin="togglePin"
       />
     </section>
+    <div v-else-if="searchQuery" class="empty">{{ t('app.searchEmpty') }}</div>
     <div v-else class="empty">{{ t('app.empty') }}</div>
 
     <ProjectEditor
@@ -318,7 +376,7 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
       <section class="dialog chat-dialog">
         <header>
           <h2>{{ t('chat.title') }}</h2>
-          <button type="button" @click="chatOpen = false">×</button>
+          <button type="button" @click="chatOpen = false"><X /></button>
         </header>
         <ChatPanel :settings="settings" :projects="projects" :pending-log="pendingLog" @memory-updated="onMemoryUpdated" />
       </section>
@@ -337,7 +395,7 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
       <section class="dialog git-dialog">
         <header>
           <h2>{{ t('git.title', { name: gitProject.name }) }}</h2>
-          <button type="button" @click="gitOpen = false">×</button>
+          <button type="button" @click="gitOpen = false"><X /></button>
         </header>
         <GitPanel :project="gitProject" :settings="settings" />
       </section>

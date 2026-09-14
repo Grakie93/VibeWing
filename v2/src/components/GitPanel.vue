@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { desktop } from '../services/desktop'
+import { notify } from '../services/notify'
 import { t } from '../i18n'
 import type { ProjectView, Settings } from '../types'
 
@@ -16,14 +17,23 @@ const files = ref<GitFile[]>([])
 const scope = ref<'frontend' | 'backend'>('frontend')
 const branches = ref<string[]>([])
 const branch = ref('')
-const selected = ref<string[]>([])
-const message = ref('')
+// Keep a separate commit message per scope so switching frontend/backend
+// preserves each side's draft instead of wiping it.
+const messages = ref<Record<'frontend' | 'backend', string>>({ frontend: '', backend: '' })
+const message = computed({
+  get: () => messages.value[scope.value],
+  set: (value: string) => { messages.value[scope.value] = value },
+})
 const busy = ref(false)
 const error = ref('')
+const info = ref('')
 const aiBusy = ref(false)
 const commitLocale = ref<'zh' | 'en'>('zh')
 
-const stagedFiles = computed(() => files.value.filter(file => file.staged))
+// A file can be both staged and unstaged (e.g. staged then edited again). To
+// keep each path in exactly one box, the "both" case is shown only under
+// unstaged so the pending change is what the user acts on.
+const stagedFiles = computed(() => files.value.filter(file => file.staged && !file.unstaged))
 const unstagedFiles = computed(() => files.value.filter(file => file.unstaged))
 
 function statusCode(file: GitFile) {
@@ -56,11 +66,11 @@ function statusClass(file: GitFile) {
 
 async function refresh() {
   error.value = ''
+  info.value = ''
   try {
     files.value = await desktop.gitStatus(props.project.id, scope.value)
     branches.value = await desktop.gitBranches(props.project.id, scope.value)
     branch.value = await desktop.gitCurrentBranch(props.project.id, scope.value)
-    selected.value = files.value.filter(file => !(file.staged && !file.unstaged)).map(file => file.path)
   } catch (cause) {
     error.value = String(cause)
     files.value = []
@@ -77,16 +87,25 @@ async function pull() {
   await run(t('git.action.pull'), () => desktop.gitPull(props.project.id, scope.value))
 }
 
-async function stage() {
-  if (!selected.value.length) return
-  await run(t('git.action.stage'), () => desktop.gitStage(props.project.id, scope.value, selected.value))
+async function stagePaths(paths: string[]) {
+  if (!paths.length) return
+  await run(t('git.action.stage'), () => desktop.gitStage(props.project.id, scope.value, paths))
 }
-
-function selectAll() {
-  selected.value = files.value.filter(file => !(file.staged && !file.unstaged)).map(file => file.path)
+async function unstagePaths(paths: string[]) {
+  if (!paths.length) return
+  await run(t('git.action.unstage'), () => desktop.gitUnstage(props.project.id, scope.value, paths))
 }
-function clearSelection() {
-  selected.value = []
+function stageFile(path: string) {
+  void stagePaths([path])
+}
+function unstageFile(path: string) {
+  void unstagePaths([path])
+}
+function stageAll() {
+  void stagePaths(unstagedFiles.value.map(file => file.path))
+}
+function unstageAll() {
+  void unstagePaths(stagedFiles.value.map(file => file.path))
 }
 
 async function commit() {
@@ -94,10 +113,23 @@ async function commit() {
     error.value = t('git.error.emptyMessage')
     return
   }
-  await run(t('git.commit.commit'), async () => {
+  busy.value = true
+  error.value = ''
+  info.value = ''
+  try {
     await desktop.gitCommit(props.project.id, scope.value, message.value.trim())
     message.value = ''
-  })
+    notify('success', `${t('git.commit.commit')}${t('common.success')}`)
+  } catch (cause) {
+    const raw = String(cause)
+    error.value = raw.toLowerCase().includes('nothing to commit')
+      ? t('git.error.nothingToCommit')
+      : `${t('git.commit.commit')}: ${raw}`
+    notify('error', error.value)
+  } finally {
+    busy.value = false
+    await refresh()
+  }
 }
 
 async function generateMessage() {
@@ -109,19 +141,55 @@ async function generateMessage() {
   }
   aiBusy.value = true
   error.value = ''
+  // Lock the scope this generation was triggered for: if the user switches
+  // tabs while the request is in flight, the result must land back in the
+  // original scope's box, not the one currently displayed.
+  const targetScope = scope.value
+  const fileList = files.value
   try {
-    const summary = files.value.map(file => `${statusLabel(file)} ${file.path}`).join('\n')
+    // Prefer the staged diff (what would actually be committed); fall back to
+    // the working-tree diff when nothing is staged yet.
+    let diffText = (await desktop.gitDiff(props.project.id, targetScope, true)).trim()
+    if (!diffText) {
+      diffText = (await desktop.gitDiff(props.project.id, targetScope, false)).trim()
+    }
+    diffText = diffText.replace(/\t/g, '  ').slice(0, 14000)
+    const summary = fileList.map(file => `${statusLabel(file)} ${file.path}`).join('\n')
+    if (!fileList.length) {
+      error.value = t('git.error.nothingToCommit')
+      return
+    }
+    const localeHint = commitLocale.value === 'zh' ? '使用简体中文' : 'in English'
+    const diffSection = diffText
+      ? `Diff：\n${diffText}`
+      : 'Diff：无（仅根据上面的文件列表生成，不要反问）'
     const result = await desktop.askAi({
       provider_id: provider.id,
       model,
       messages: [
         {
+          role: 'system',
+          content: '你是一名资深软件工程师，专门负责根据 Git 变更写 Conventional Commits 提交信息。无论提供的信息是否充分，都必须直接输出一条提交信息，不要反问用户，不要要求补充信息，不要解释。',
+        },
+        {
           role: 'user',
-          content: `Please generate a specific Conventional Commit message based on the following Git changes. Return only one line. ${commitLocale.value === 'zh' ? 'Reply in Simplified Chinese.' : 'Reply in English.'}\n\n${summary}`,
+          content: `请根据下面的 Git 变更写一条 Conventional Commits 风格的提交信息。
+要求：
+- 聚焦具体的功能/行为改动，不要罗列文件名，也不要写"提交xx文件、忽略xx文件"这类空泛描述。
+- 格式：<type>(<scope>): <简短中文描述>，type 取 feat/fix/refactor/docs/style/chore/test/perf 之一，scope 用模块或目录名。
+- 若改动较复杂，在标题下补一行以 "-" 开头的 body 说明原因或影响。
+- 即使 diff 为空或信息有限，也请仅根据文件列表推断最可能的改动意图，直接输出提交信息，绝对禁止提问。
+- 只输出提交信息本身，不要包含任何解释或引号包裹。
+${localeHint}
+
+变更文件列表：
+${summary}
+
+${diffSection}`,
         },
       ],
     })
-    message.value = result.content.trim().split('\n')[0].replace(/^`+|`+$/g, '')
+    messages.value[targetScope] = result.content.trim().replace(/^```[\s\S]*?\n?/, '').replace(/```$/g, '').trim()
   } catch (cause) {
     error.value = `${t('git.error.aiFailed')}：${String(cause)}`
   } finally {
@@ -130,7 +198,52 @@ async function generateMessage() {
 }
 
 async function push() {
-  await run(t('git.commit.push'), () => desktop.gitPush(props.project.id, scope.value))
+  info.value = ''
+  // When there are uncommitted changes, commit them first (staging any
+  // unstaged ones) so that "push" actually ships new commits instead of
+  // silently reporting "up to date". Staged files are already part of the
+  // next commit, so we only need to stage whatever is still unstaged.
+  const dirty = files.value.some(file => file.unstaged || file.staged)
+  if (dirty) {
+    if (!message.value.trim()) {
+      error.value = t('git.error.emptyMessage')
+      notify('error', error.value)
+      return
+    }
+    busy.value = true
+    error.value = ''
+    try {
+      if (unstagedFiles.value.length) {
+        await desktop.gitStage(props.project.id, scope.value, unstagedFiles.value.map(file => file.path))
+      }
+      await desktop.gitCommit(props.project.id, scope.value, message.value.trim())
+      message.value = ''
+      notify('success', `${t('git.commit.commit')}${t('common.success')}`)
+    } catch (cause) {
+      const raw = String(cause)
+      error.value = raw.toLowerCase().includes('nothing to commit')
+        ? t('git.error.nothingToCommit')
+        : `${t('git.commit.commit')}: ${raw}`
+      notify('error', error.value)
+      await refresh()
+      busy.value = false
+      return
+    }
+    busy.value = false
+  }
+  busy.value = true
+  error.value = ''
+  try {
+    const result = await desktop.gitPush(props.project.id, scope.value)
+    notify('success', `${t('git.commit.push')}${t('common.success')}`)
+    info.value = result.trim() || t('git.push.upToDate')
+  } catch (cause) {
+    error.value = `${t('git.commit.push')}: ${String(cause)}`
+    notify('error', error.value)
+  } finally {
+    busy.value = false
+    await refresh()
+  }
 }
 
 async function run(label: string, action: () => Promise<unknown>) {
@@ -139,8 +252,10 @@ async function run(label: string, action: () => Promise<unknown>) {
   try {
     await action()
     await refresh()
+    notify('success', `${label}${t('common.success')}`)
   } catch (cause) {
     error.value = `${label}: ${String(cause)}`
+    notify('error', error.value)
   } finally {
     busy.value = false
   }
@@ -169,17 +284,6 @@ watch(scope, refresh, { immediate: true })
       <button type="button" :disabled="busy" @click="refresh">{{ t('git.action.refresh') }}</button>
     </div>
 
-    <div class="git-actions-top">
-      <div class="git-select-actions">
-        <button type="button" :disabled="busy" @click="selectAll">{{ t('git.action.selectAll') }}</button>
-        <button type="button" :disabled="busy" @click="clearSelection">{{ t('git.action.clear') }}</button>
-        <button type="button" :disabled="busy || !selected.length" @click="stage">
-          {{ t('git.action.stage') }}
-        </button>
-      </div>
-      <span class="git-selected-count">{{ t('git.selectedCount', { n: selected.length }) }}</span>
-    </div>
-
     <div class="git-legend">
       <span><i class="git-status-dot status-added"></i>{{ t('git.legend.added') }}</span>
       <span><i class="git-status-dot status-modified"></i>{{ t('git.legend.modified') }}</span>
@@ -188,40 +292,74 @@ watch(scope, refresh, { immediate: true })
     </div>
 
     <p v-if="error" class="git-error">{{ error }}</p>
+    <p v-if="info" class="git-info">{{ info }}</p>
 
     <div v-if="!files.length" class="git-empty">{{ t('git.empty') }}</div>
-    <div v-else class="git-files">
-      <div class="git-file-section">
-        <h4>{{ t('git.unstaged') }}</h4>
-        <div v-if="!unstagedFiles.length" class="git-section-empty">—</div>
-        <label
-          v-for="file in unstagedFiles"
-          :key="`u-${file.path}`"
-          class="git-file"
-        >
-          <input v-model="selected" type="checkbox" :value="file.path" />
-          <span :class="['git-status', statusClass(file)]">{{ statusLabel(file) }}</span>
-          <code :title="file.path">{{ file.path }}</code>
-        </label>
-      </div>
-      <div class="git-file-section">
-        <h4>{{ t('git.staged') }}</h4>
-        <div v-if="!stagedFiles.length" class="git-section-empty">—</div>
-        <label
-          v-for="file in stagedFiles"
-          :key="`s-${file.path}`"
-          class="git-file"
-          :class="{ disabled: file.staged && !file.unstaged }"
-        >
-          <input
-            v-model="selected"
-            type="checkbox"
-            :value="file.path"
-            :disabled="file.staged && !file.unstaged"
-          />
-          <span :class="['git-status', statusClass(file)]">{{ statusLabel(file) }}</span>
-          <code :title="file.path">{{ file.path }}</code>
-        </label>
+    <div v-else class="git-workspace">
+      <div class="git-columns">
+        <div class="git-column">
+          <div class="git-column-head">
+            <h4>{{ t('git.unstaged') }}</h4>
+            <button
+              type="button"
+              class="git-head-btn"
+              :disabled="busy || !unstagedFiles.length"
+              @click="stageAll"
+            >
+              {{ t('git.action.stageAll') }}
+            </button>
+          </div>
+          <div class="git-file-box">
+            <div v-if="!unstagedFiles.length" class="git-section-empty">—</div>
+            <div
+              v-for="file in unstagedFiles"
+              :key="`u-${file.path}`"
+              class="git-file"
+            >
+              <button
+                type="button"
+                class="git-toggle-btn"
+                :disabled="busy"
+                :aria-label="t('git.action.stage')"
+                @click="stageFile(file.path)"
+              >+</button>
+              <span :class="['git-status', statusClass(file)]">{{ statusLabel(file) }}</span>
+              <code>{{ file.path }}</code>
+            </div>
+          </div>
+        </div>
+
+        <div class="git-column">
+          <div class="git-column-head">
+            <h4>{{ t('git.staged') }}</h4>
+            <button
+              type="button"
+              class="git-head-btn"
+              :disabled="busy || !stagedFiles.length"
+              @click="unstageAll"
+            >
+              {{ t('git.action.unstageAll') }}
+            </button>
+          </div>
+          <div class="git-file-box staged">
+            <div v-if="!stagedFiles.length" class="git-section-empty">—</div>
+            <div
+              v-for="file in stagedFiles"
+              :key="`s-${file.path}`"
+              class="git-file staged"
+            >
+              <button
+                type="button"
+                class="git-toggle-btn"
+                :disabled="busy"
+                :aria-label="t('git.action.unstage')"
+                @click="unstageFile(file.path)"
+              >−</button>
+              <span :class="['git-status', statusClass(file)]">{{ statusLabel(file) }}</span>
+              <code>{{ file.path }}</code>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 

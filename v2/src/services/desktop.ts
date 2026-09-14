@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
+import { open } from '@tauri-apps/plugin-dialog'
 import type { Chat, Project, ProjectView, ServiceKind, Settings, UpdateInfo } from '../types'
 
 export const desktop = {
@@ -7,6 +8,10 @@ export const desktop = {
   deleteProject: (id: string) => invoke<void>('delete_project', { id }),
   openUrl: (url: string) => invoke<void>('open_url', { url }),
   openPath: (path: string) => invoke<void>('open_path', { path }),
+  pickDirectory: async () => {
+    const selected = await open({ directory: true, multiple: false })
+    return (selected as string | null) ?? null
+  },
   rescanProjects: () => invoke<ProjectView[]>('rescan_projects'),
   getProjectsDir: () => invoke<string>('get_projects_dir'),
   serviceAction: (id: string, service: ServiceKind, action: 'start' | 'stop' | 'restart') =>
@@ -20,9 +25,11 @@ export const desktop = {
   listChats: () => invoke<Chat[]>('list_chats'),
   saveChats: (chats: Chat[]) => invoke<void>('save_chats', { chats }),
   gitStatus: (id: string, scope: string) => invoke<{path:string;status:string;staged:boolean;unstaged:boolean}[]>('git_status', { id, scope }),
+  gitDiff: (id: string, scope: string, cached: boolean) => invoke<string>('git_diff', { id, scope, cached }),
   gitStage: (id: string, scope: string, paths: string[]) => invoke<void>('git_stage', { id, scope, paths }),
+  gitUnstage: (id: string, scope: string, paths: string[]) => invoke<void>('git_unstage', { id, scope, paths }),
   gitCommit: (id: string, scope: string, message: string) => invoke<string>('git_commit', { id, scope, message }),
-  gitPush: (id: string, scope: string) => invoke<void>('git_push', { id, scope }),
+  gitPush: (id: string, scope: string) => invoke<string>('git_push', { id, scope }),
   gitBranches: (id: string, scope: string) => invoke<string[]>('git_branches', { id, scope }),
   gitCurrentBranch: (id: string, scope: string) => invoke<string>('git_current_branch', { id, scope }),
   gitSwitchBranch: (id: string, scope: string, branch: string) => invoke<void>('git_switch_branch', { id, scope, branch }),

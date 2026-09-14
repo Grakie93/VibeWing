@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { desktop } from '../services/desktop'
 import { renderMarkdown } from '../services/markdown'
 import { t } from '../i18n'
+import { Plus, Pin, Send, X } from '@lucide/vue'
 import type { Chat, ChatMessage, ProjectView, Settings } from '../types'
 
 const props = defineProps<{ settings: Settings; projects?: ProjectView[]; pendingLog?: string }>()
@@ -236,7 +237,7 @@ watch([activeId, () => activeChat.value?.messages.length, busy], () => {
   <section class="chat-panel">
     <div class="chat-layout">
       <aside class="chat-sidebar">
-        <button type="button" class="new-chat" @click="createChat">＋ {{ t('chat.new') }}</button>
+        <button type="button" class="new-chat" @click="createChat"><Plus /> {{ t('chat.new') }}</button>
         <div
           v-for="chat in chats"
           :key="chat.id"
@@ -252,9 +253,9 @@ watch([activeId, () => activeChat.value?.messages.length, busy], () => {
           <button
             type="button"
             class="chat-tab-remove"
-            :title="t('common.cancel')"
+            :aria-label="t('common.cancel')"
             @click.stop="removeChat(chat.id)"
-          >×</button>
+          ><X /></button>
         </div>
         <p v-if="!chats.length" class="chat-sidebar-empty"></p>
       </aside>
@@ -274,7 +275,7 @@ watch([activeId, () => activeChat.value?.messages.length, busy], () => {
                   :title="t('chat.pin.memory')"
                   :aria-label="t('chat.pin.memory')"
                   @click="openPinMemory(message.content)"
-                >📌</button>
+                ><Pin /></button>
                 <template v-if="message.role === 'user'">{{ t('chat.role.user') }}</template>
                 <template v-else>
                   {{ t('chat.role.ai') }}
@@ -310,7 +311,7 @@ watch([activeId, () => activeChat.value?.messages.length, busy], () => {
         <div class="chat-composer">
           <div v-if="attachedProject" class="chat-attachment">
             <span>{{ t('chat.attach.project') }} {{ attachedProject.name }}</span>
-            <button type="button" :title="t('common.cancel')" @click.stop="attachedProject = null">×</button>
+            <button type="button" :aria-label="t('common.cancel')" @click.stop="attachedProject = null"><X /></button>
           </div>
           <pre v-if="attachedLog && logPreviewOpen" class="composer-attachment-preview">{{ attachedLog }}</pre>
           <div
@@ -320,42 +321,45 @@ watch([activeId, () => activeChat.value?.messages.length, busy], () => {
           >
             <span class="log-attachment-arrow" :class="{ open: logPreviewOpen }">›</span>
             <span>{{ t('chat.attach.log') }} {{ attachedLog.length }} {{ t('chat.attach.unit') }}</span>
-            <button type="button" :title="t('common.cancel')" @click.stop="attachedLog = ''">×</button>
+            <button type="button" :aria-label="t('common.cancel')" @click.stop="attachedLog = ''"><X /></button>
           </div>
           <div class="composer-input-area">
-            <button
-              type="button"
-              class="composer-icon attach-button"
-              :title="t('chat.attach.title')"
-              @click="contextOpen = !contextOpen"
-            >＋</button>
-            <div v-if="contextOpen" class="context-menu">
-              <button
-                v-for="project in (projects || [])"
-                :key="project.id"
-                type="button"
-                @click="attachedProject = project; contextOpen = false"
-              >{{ project.name }}</button>
-              <span v-if="!(projects || []).length" class="hint">{{ t('chat.attach.empty') }}</span>
-            </div>
             <textarea
               v-model="input"
-              rows="4"
+              rows="3"
               :placeholder="t('chat.placeholder')"
               @keydown="keydown"
             />
-            <div class="composer-toolbar">
-              <select v-model="selectedModel" class="model-select">
-                <option v-for="model in models" :key="model.provider + model.id" :value="model.id">
-                  {{ model.label }}
-                </option>
-              </select>
+            <div class="composer-bottom-bar">
               <button
-                class="send-button primary"
                 type="button"
-                :disabled="busy || !activeModel"
-                @click="send"
-              >➤</button>
+                class="composer-icon attach-button"
+                :title="t('chat.attach.title')"
+                :aria-label="t('chat.attach.title')"
+                @click="contextOpen = !contextOpen"
+              ><Plus /></button>
+              <div v-if="contextOpen" class="context-menu">
+                <button
+                  v-for="project in (projects || [])"
+                  :key="project.id"
+                  type="button"
+                  @click="attachedProject = project; contextOpen = false"
+                >{{ project.name }}</button>
+                <span v-if="!(projects || []).length" class="hint">{{ t('chat.attach.empty') }}</span>
+              </div>
+              <div class="composer-toolbar">
+                <select v-model="selectedModel" class="model-select">
+                  <option v-for="model in models" :key="model.provider + model.id" :value="model.id">
+                    {{ model.label }}
+                  </option>
+                </select>
+                <button
+                  class="send-button primary"
+                  type="button"
+                  :disabled="busy || !activeModel"
+                  @click="send"
+                ><Send /></button>
+              </div>
             </div>
           </div>
         </div>
@@ -371,9 +375,9 @@ watch([activeId, () => activeChat.value?.messages.length, busy], () => {
           <h2>{{ t('chat.pin.memory.dialogTitle') }}</h2>
           <button
             type="button"
-            :title="t('chat.pin.memory.cancel')"
+            :aria-label="t('chat.pin.memory.cancel')"
             @click="pinDialogOpen = false"
-          >×</button>
+          ><X /></button>
         </header>
         <p class="confirm-message">{{ t('chat.pin.memory.dialogDesc') }}</p>
         <textarea

@@ -2,6 +2,8 @@
 import { reactive, ref, watch } from 'vue'
 import { t } from '../i18n'
 import { confirmDialog } from '../services/confirm'
+import { desktop } from '../services/desktop'
+import { Folder, X } from '@lucide/vue'
 import type { Project } from '../types'
 import { emptyProject } from '../types'
 
@@ -30,6 +32,11 @@ watch(
     }
   },
 )
+
+async function pickPath(field: 'path' | 'frontend_path' | 'backend_path') {
+  const dir = await desktop.pickDirectory()
+  if (dir) form[field] = dir
+}
 
 function submit() {
   if (saving.value) return
@@ -60,7 +67,7 @@ async function remove() {
     <form class="dialog project-editor" @submit.prevent="submit">
       <header>
         <h2>{{ form.id ? t('editor.title.edit') : t('editor.title.new') }}</h2>
-        <button type="button" :title="t('common.cancel')" @click="emit('close')">×</button>
+        <button type="button" :aria-label="t('common.cancel')" @click="emit('close')"><X /></button>
       </header>
       <p v-if="form.source === 'file'" class="editor-imported-hint">
         {{ t('editor.importedHint') }}
@@ -71,12 +78,18 @@ async function remove() {
       </label>
       <label>
         {{ t('editor.field.path') }}
-        <input v-model.trim="form.path" required placeholder="/path/to/project" />
+        <span class="path-field">
+          <input v-model.trim="form.path" required placeholder="/path/to/project" />
+          <button type="button" class="folder-pick" :title="t('editor.pickFolder')" :aria-label="t('editor.pickFolder')" @click="pickPath('path')"><Folder /></button>
+        </span>
       </label>
       <div class="form-grid">
         <label>
           {{ t('editor.field.frontendPath') }}
-          <input v-model.trim="form.frontend_path" />
+          <span class="path-field">
+            <input v-model.trim="form.frontend_path" />
+            <button type="button" class="folder-pick" :title="t('editor.pickFolder')" :aria-label="t('editor.pickFolder')" @click="pickPath('frontend_path')"><Folder /></button>
+          </span>
         </label>
         <label>
           {{ t('editor.field.frontendPort') }}
@@ -96,7 +109,10 @@ async function remove() {
         </label>
         <label>
           {{ t('editor.field.backendPath') }}
-          <input v-model.trim="form.backend_path" />
+          <span class="path-field">
+            <input v-model.trim="form.backend_path" />
+            <button type="button" class="folder-pick" :title="t('editor.pickFolder')" :aria-label="t('editor.pickFolder')" @click="pickPath('backend_path')"><Folder /></button>
+          </span>
         </label>
         <label>
           {{ t('editor.field.backendPort') }}
@@ -120,7 +136,6 @@ async function remove() {
           v-if="form.id"
           type="button"
           class="danger"
-          :title="t('editor.action.remove')"
           @click="remove"
         >{{ t('editor.action.remove') }}</button>
         <div class="editor-actions-right">

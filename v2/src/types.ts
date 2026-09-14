@@ -37,6 +37,7 @@ export interface Settings {
   providers: Provider[]
   onboarding_complete?: boolean
   memory?: string
+  pinned_ids?: string[]
 }
 
 export interface UpdateInfo {
