@@ -1,6 +1,6 @@
 [package]
 name = "vibewing"
-version = "2.1.5"
+version = "2.1.6"
 description = "A lightweight desktop workspace for vibe coding projects"
 authors = ["Grakie93"]
 license = "MIT"

@@ -39,6 +39,10 @@ fn run(cwd: &str, args: &[&str]) -> Result<String, String> {
         .args(full_args)
         .current_dir(cwd)
         .env("GIT_TERMINAL_PROMPT", "0")
+        // Inject the user's full login-shell PATH so git hooks that call
+        // pnpm/yarn/npm (e.g. husky pre-commit) can find them even when
+        // VibeWing is launched as a GUI app with a minimal PATH.
+        .env("PATH", processes::git_path())
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());

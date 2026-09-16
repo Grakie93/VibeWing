@@ -3,6 +3,7 @@ use std::{
     net::{SocketAddr, TcpStream},
     path::Path,
     process::{Child, Command, Stdio},
+    sync::OnceLock,
     time::{Duration, Instant},
 };
 
@@ -10,6 +11,45 @@ use crate::{
     models::{Project, ServiceKind},
     storage::AppState,
 };
+
+/// The user's full login-shell PATH, captured once and cached.
+///
+/// VibeWing is normally launched as a GUI app, so its child processes do NOT
+/// inherit the PATH the user sees in their terminal — `.zshrc` / `.zprofile`
+/// are never sourced. Consequently tools installed by Homebrew
+/// (`/opt/homebrew/bin`), corepack, Volta, nvm, etc. are missing, and git hooks
+/// that shell out to `pnpm` / `yarn` / `npm` fail with "command not found".
+///
+/// Service startup already avoids this by running commands through a login
+/// shell (`shell -l -c`); git invocations do not, so we capture the login PATH
+/// here and inject it into the git subprocess environment instead.
+fn login_shell_path() -> Option<String> {
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
+    let output = Command::new(&shell)
+        .args(["-l", "-c", "echo -n \"$PATH\""])
+        .output()
+        .ok()?;
+    if output.status.success() {
+        let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if !path.is_empty() {
+            return Some(path);
+        }
+    }
+    None
+}
+
+static LOGIN_PATH: OnceLock<Option<String>> = OnceLock::new();
+
+/// PATH to use for git subprocesses: the user's login-shell PATH when we can
+/// obtain it, otherwise the inherited PATH with the common macOS package-manager
+/// directories prepended as a fallback.
+pub fn git_path() -> String {
+    if let Some(path) = LOGIN_PATH.get_or_init(login_shell_path).as_ref() {
+        return path.clone();
+    }
+    let inherited = std::env::var("PATH").unwrap_or_default();
+    format!("/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:{}", inherited)
+}
 
 /// Win32 entry points for testing whether a pid exists. Declared locally so we
 /// do not have to pull in an extra dependency.
