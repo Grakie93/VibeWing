@@ -137,11 +137,14 @@ pub fn files(cwd: &str, pathspec: Option<&str>) -> Result<Vec<GitFile>, String> 
             let status = line[..2].to_string();
             let bytes = status.as_bytes();
             // '?' means untracked, not a real index/worktree status, so it must
-            // not be counted as staged or unstaged.
+            // not be counted as staged. It does belong in the unstaged column,
+            // otherwise the UI would hide untracked files entirely and they
+            // could never be staged or committed.
             let is_change = |b: u8| b != b' ' && b != b'?';
+            let untracked = bytes[0] == b'?';
             Some(GitFile {
                 staged: is_change(bytes[0]),
-                unstaged: is_change(bytes[1]),
+                unstaged: is_change(bytes[1]) || untracked,
                 status,
                 path: line[3..].trim().to_string(),
             })
